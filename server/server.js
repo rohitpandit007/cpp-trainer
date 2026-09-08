@@ -248,7 +248,7 @@ export function createServer() {
 export function startServer(port = process.env.PORT || 3000) {
   const server = createServer();
   return new Promise((resolve) => {
-    server.listen(port, () => {
+    server.listen(port, '0.0.0.0', () => {
       const addr = server.address();
       const actualPort = typeof addr === 'object' && addr ? addr.port : port;
       console.log(`CodeBloom C++ Server listening on http://localhost:${actualPort}`);
