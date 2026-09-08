@@ -18,6 +18,17 @@ const app = document.querySelector('#app');
 const rawStored = JSON.parse(localStorage.getItem('codebloom-profile') || '{"completed":[],"topics":{}}');
 const migratedStored = migrateProfile(rawStored);
 
+const savedTheme = localStorage.getItem('codebloom-theme') || (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+
+export const applyTheme = (theme) => {
+  if (typeof document === 'undefined') return;
+  if (theme === 'dark') {
+    document.body.classList.add('dark-mode');
+  } else {
+    document.body.classList.remove('dark-mode');
+  }
+};
+
 const practicePool = [
   exerciseCatalog['cpp-basics-hard'],
   exerciseCatalog['functions-mini'],
@@ -43,6 +54,7 @@ const getIndependentExercise = (mode) => {
 
 const state = {
   profile: migratedStored,
+  theme: savedTheme,
   lessonId: 'cpp-basics',
   mode: 'course',
   source: lessons[0].example,
@@ -479,7 +491,7 @@ const independent = (type) => {
 };
 
 const render = () => {
-  app.innerHTML = `<div class="shell">${sidebar()}<div class="content"><header><div>${state.mode === 'course' ? 'Good to see you, coder.' : state.mode === 'mastery' ? 'Final assessment' : 'Keep your hands on the keyboard.'}</div><div class="header-right"><span>🔥 ${(state.profile.stats?.passedSubmissions || state.profile.completed.length) * 3} XP</span><span class="avatar">R</span></div></header>${state.mode === 'course' ? `<div class="course">${map()}${lessonList()}${workspace()}</div>` : independent(state.mode)}</div></div>`;
+  app.innerHTML = `<div class="shell">${sidebar()}<div class="content"><header><div>${state.mode === 'course' ? 'Good to see you, coder.' : state.mode === 'mastery' ? 'Final assessment' : 'Keep your hands on the keyboard.'}</div><div class="header-right"><button class="theme-toggle-btn" data-action="toggle-theme" title="Toggle night mode">${state.theme === 'dark' ? '☀️ Light' : '🌙 Night'}</button><span>🔥 ${(state.profile.stats?.passedSubmissions || state.profile.completed.length) * 3} XP</span><span class="avatar">R</span></div></header>${state.mode === 'course' ? `<div class="course">${map()}${lessonList()}${workspace()}</div>` : independent(state.mode)}</div></div>`;
   if (state.jumpToWorkspace) {
     state.jumpToWorkspace = false;
     scrollToLearningWorkspace(app);
@@ -506,6 +518,17 @@ app.addEventListener('click', async e => {
   const el = e.target.closest('[data-action]');
   if (!el) return;
   const action = el.dataset.action;
+
+  if (action === 'toggle-theme') {
+    state.theme = state.theme === 'dark' ? 'light' : 'dark';
+    try {
+      localStorage.setItem('codebloom-theme', state.theme);
+    } catch (e) {}
+    applyTheme(state.theme);
+    render();
+    addLessonNavigation();
+    return;
+  }
 
   if (action === 'lesson') {
     state.lessonId = el.dataset.id;
@@ -791,5 +814,6 @@ app.addEventListener('click', async e => {
 
 const starterTemplate = `#include <iostream>\nusing namespace std;\n\nint main() {\n  cout << "Hello, C++!";\n  return 0;\n}`;
 
+applyTheme(state.theme);
 render();
 addLessonNavigation();

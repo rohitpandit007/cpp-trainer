@@ -821,4 +821,189 @@
   font-style: italic;
 }
 
+/* ==========================================================================
+   Night Mode (Dark Theme) & Theme Toggle Button
+   ========================================================================== */
+
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font: 600 12px 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.theme-toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+/* Dark Mode Overrides */
+body.dark-mode {
+  --ink: #e2e8f0;
+  --muted: #94a3b8;
+  --paper: #0b0f17;
+  --card: #141c2b;
+  --line: #223043;
+  --dark: #0d1522;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+body.dark-mode aside {
+  background: #0f1724;
+  border-right-color: #1e293b;
+}
+
+body.dark-mode .brand b {
+  background: #1e3a31;
+  color: #77d3aa;
+}
+
+body.dark-mode .nav {
+  color: #94a3b8;
+}
+
+body.dark-mode .nav:hover,
+body.dark-mode .nav.active {
+  background: #1e2b3c;
+  color: #38bdf8;
+}
+
+body.dark-mode .divider {
+  background: #1e293b;
+}
+
+body.dark-mode header {
+  background: rgba(15, 23, 36, 0.85);
+  backdrop-filter: blur(8px);
+  border-bottom-color: var(--line);
+}
+
+body.dark-mode .theme-toggle-btn {
+  background: #1a2536;
+  border-color: #2b3b52;
+  color: #f1f5f9;
+}
+
+body.dark-mode .theme-toggle-btn:hover {
+  background: #25354c;
+  border-color: #3b506e;
+}
+
+body.dark-mode .line-card,
+body.dark-mode .exercise,
+body.dark-mode .progress-ring {
+  background: #141d2c;
+  border-color: #223043;
+}
+
+body.dark-mode .progress-ring {
+  background: #131b28;
+}
+
+body.dark-mode .module {
+  background: #121a26;
+  border-color: #233144;
+}
+
+body.dark-mode .module span,
+body.dark-mode .problem span,
+body.dark-mode .overline,
+body.dark-mode .eyebrow {
+  color: #8da2b5;
+}
+
+body.dark-mode .module p,
+body.dark-mode .teach p,
+body.dark-mode .exercise p,
+body.dark-mode .problem p,
+body.dark-mode .lead,
+body.dark-mode .line-card ol {
+  color: #94a3b8;
+}
+
+body.dark-mode .line-card code {
+  background: #1e2b3e;
+  color: #a5f3fc;
+}
+
+body.dark-mode .lesson-item {
+  color: #e2e8f0;
+  border-bottom-color: #1a2434;
+}
+
+body.dark-mode .lesson-item:hover,
+body.dark-mode .lesson-item.selected {
+  background: #192333;
+}
+
+body.dark-mode .mission {
+  background: #112620;
+  border-left-color: #34d399;
+}
+
+body.dark-mode .mission span {
+  color: #6ee7b7;
+}
+
+body.dark-mode .problem {
+  background: #102422;
+  border-color: #1e3d36;
+}
+
+body.dark-mode .adaptive.easy {
+  background: #112620;
+  color: #6ee7b7;
+}
+
+body.dark-mode .adaptive.medium {
+  background: #14233a;
+  color: #93c5fd;
+}
+
+body.dark-mode .adaptive.support {
+  background: #2c1c14;
+  color: #fdba74;
+}
+
+body.dark-mode .levels button {
+  background: #1a2536;
+  color: #cbd5e1;
+  border-color: #2b3b52;
+}
+
+body.dark-mode .levels button:hover {
+  background: #24344b;
+}
+
+body.dark-mode .levels .selected {
+  background: #10b981;
+  color: #0f172a;
+  border-color: #10b981;
+  font-weight: 700;
+}
+
+body.dark-mode .lesson-navigation {
+  border-top-color: var(--line);
+}
+
+body.dark-mode .lesson-navigation button {
+  background: #1a2536;
+  border-color: #2b3b52;
+  color: #38bdf8;
+}
+
+body.dark-mode .lesson-navigation button:hover:not(:disabled) {
+  background: #24344b;
+}
+
+
 
