@@ -1,0 +1,29 @@
+.lesson-navigation {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  color: #71817d;
+  display: flex;
+  font: 11px 'DM Mono';
+  gap: 14px;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding: 14px 0;
+}
+
+.lesson-navigation button {
+  background: #fffefa;
+  border: 1px solid #cfddd5;
+  border-radius: 7px;
+  color: #255f50;
+  cursor: pointer;
+  font: 600 12px 'DM Sans';
+  padding: 9px 12px;
+}
+
+.lesson-navigation button:hover:not(:disabled) { background: #e4f3eb; }
+.lesson-navigation button:disabled { cursor: not-allowed; opacity: .42; }
+
+@media (max-width: 520px) {
+  .lesson-navigation span { display: none; }
+  .lesson-navigation button { flex: 1; }
+}

@@ -1,5 +1,5 @@
 import { lessons, modules, mastery } from './courseData.js';
-import { assessCppSource, nextDifficulty, scrollToLearningWorkspace, updateLearnerProfile } from './learningEngine.js';
+import { assessCppSource, getAdjacentLessonIds, nextDifficulty, scrollToLearningWorkspace, updateLearnerProfile } from './learningEngine.js';
 
 const app = document.querySelector('#app');
 const stored = JSON.parse(localStorage.getItem('codebloom-profile') || '{"completed":[],"topics":{}}');
@@ -20,9 +20,21 @@ const independent = (type) => { const pool = type === 'mastery' ? mastery : less
 
 const render = () => { app.innerHTML = `<div class="shell">${sidebar()}<div class="content"><header><div>${state.mode === 'course' ? 'Good to see you, coder.' : state.mode === 'mastery' ? 'Final assessment' : 'Keep your hands on the keyboard.'}</div><div class="header-right"><span>🔥 ${state.profile.completed.length * 3} XP</span><span class="avatar">R</span></div></header>${state.mode === 'course' ? `<div class="course">${map()}${lessonList()}${workspace()}</div>` : independent(state.mode)}</div></div>`; if (state.jumpToWorkspace) { state.jumpToWorkspace = false; scrollToLearningWorkspace(app); } };
 
+const addLessonNavigation = () => {
+  const workspaceElement = app.querySelector('.workspace');
+  if (!workspaceElement) return;
+  const adjacent = getAdjacentLessonIds(lessons.map(lesson => lesson.id), state.lessonId);
+  const navigation = document.createElement('nav');
+  navigation.className = 'lesson-navigation';
+  navigation.setAttribute('aria-label', 'Lesson navigation');
+  navigation.innerHTML = `<button data-action="previous-lesson" ${adjacent.previousId ? '' : 'disabled'}>← Previous lesson</button><span>Lesson ${lessons.findIndex(lesson => lesson.id === state.lessonId) + 1} of ${lessons.length}</span><button data-action="next-lesson" ${adjacent.nextId ? '' : 'disabled'}>Next lesson →</button>`;
+  workspaceElement.append(navigation);
+};
+
 app.addEventListener('input', e => { if (e.target.matches('[data-source]')) state.source = e.target.value; });
 app.addEventListener('click', e => { const el = e.target.closest('[data-action]'); if (!el) return; const action = el.dataset.action;
   if (action === 'lesson') { state.lessonId = el.dataset.id; state.source = current().example; state.feedback = null; state.showHint = false; state.mode = 'course'; }
+  if (action === 'previous-lesson' || action === 'next-lesson') { const adjacent = getAdjacentLessonIds(lessons.map(lesson => lesson.id), state.lessonId); const targetId = action === 'previous-lesson' ? adjacent.previousId : adjacent.nextId; if (targetId) { state.lessonId = targetId; state.source = current().example; state.feedback = null; state.showHint = false; state.jumpToWorkspace = true; } }
   if (action === 'pick-module') { state.lessonId = lessons.find(l => l.module === el.dataset.module).id; state.source = current().example; state.jumpToWorkspace = true; }
   if (action === 'mode') { state.mode = el.dataset.mode; state.feedback = null; }
   if (action === 'exercise') state.exercise = el.dataset.level;
@@ -31,5 +43,7 @@ app.addEventListener('click', e => { const el = e.target.closest('[data-action]'
   if (action === 'new-question') { state.source = current().example; state.feedback = null; }
   if (action === 'run') { state.feedback = assessCppSource(state.source); if (state.mode === 'course') { state.profile = updateLearnerProfile(state.profile, current().id, state.feedback.status === 'ready'); save(); } }
   render();
+  addLessonNavigation();
 });
 render();
+addLessonNavigation();

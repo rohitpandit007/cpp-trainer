@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { assessCppSource, nextDifficulty, scrollToLearningWorkspace, updateLearnerProfile } from './learningEngine.js';
+import { assessCppSource, getAdjacentLessonIds, nextDifficulty, scrollToLearningWorkspace, updateLearnerProfile } from './learningEngine.js';
 
 describe('learning feedback', () => {
   it('flags a program without an entry point', () => {
@@ -32,6 +32,13 @@ describe('adaptive path', () => {
 });
 
 describe('course navigation', () => {
+  it('finds the previous and next lesson without going past the course boundaries', () => {
+    const ids = ['basics', 'classes', 'constructors'];
+    assert.deepEqual(getAdjacentLessonIds(ids, 'classes'), { previousId: 'basics', nextId: 'constructors' });
+    assert.deepEqual(getAdjacentLessonIds(ids, 'basics'), { previousId: null, nextId: 'classes' });
+    assert.deepEqual(getAdjacentLessonIds(ids, 'constructors'), { previousId: 'classes', nextId: null });
+  });
+
   it('smoothly brings the selected lesson workspace into view', () => {
     let received;
     const root = { querySelector: () => ({ scrollIntoView: options => { received = options; } }) };

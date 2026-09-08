@@ -23,3 +23,9 @@ export const updateLearnerProfile = (profile, topicId, passed) => {
 export const scrollToLearningWorkspace = (root = document) => {
   root.querySelector('.workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
+
+export const getAdjacentLessonIds = (lessonIds, currentId) => {
+  const index = lessonIds.indexOf(currentId);
+  if (index === -1) return { previousId: null, nextId: null };
+  return { previousId: lessonIds[index - 1] || null, nextId: lessonIds[index + 1] || null };
+};
