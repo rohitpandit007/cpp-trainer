@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npx serve .",
-    "build": "node --check src/app.js && node --check src/learningEngine.js",
+    "start": "node server/server.js",
+    "dev": "node server/server.js",
+    "build": "node --check src/app.js && node --check src/learningEngine.js && node --check src/masteryEngine.js && node --check src/eventBus.js && node --check src/exerciseData.js && node --check server/server.js && node --check server/executor.js && node --check server/assessor.js",
     "test": "node --test"
   },
   "dependencies": {}

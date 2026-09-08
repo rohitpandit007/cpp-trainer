@@ -31,6 +31,40 @@ const rows = [
  ['runtime','Runtime polymorphism','Call the right behavior at runtime.','A base pointer can point to a derived object. virtual functions choose the derived behavior at runtime.','Make virtual display() in Animal.','Use an Animal pointer for Dog and Cat.','Create an abstract base class and demonstrate runtime polymorphism.']
 ];
 
+import { exerciseCatalog, createDefaultExercise } from './exerciseData.js';
+
 const moduleForLesson = index => index < 4 ? modules[0] : index < 10 ? modules[1] : index < 12 ? modules[2] : index < 15 ? modules[3] : modules[4];
-export const lessons = rows.map((row, index) => ({ id: row[0], title: row[1], mission: row[2], explanation: row[3], mini: row[4], medium: row[5], hard: row[6], module: moduleForLesson(index).name, example: index === 0 ? starter : starter.replace('Hello, C++!', `Lesson ${index + 1}: ${row[1]}`) }));
-export const mastery = ['Build a Student Manager class with constructors, input/output, and a display method.', 'Design a dynamic String class that correctly implements copy construction and destruction.', 'Create an employee hierarchy with virtual pay() and display all employee types through base pointers.', 'Implement a Complex class with friend-based +, <<, and >> overloads.', 'Create an abstract Shape hierarchy and compute areas from an array of Shape pointers.'];
+
+export const lessons = rows.map((row, index) => {
+  const lessonObj = {
+    id: row[0],
+    title: row[1],
+    mission: row[2],
+    explanation: row[3],
+    mini: row[4],
+    medium: row[5],
+    hard: row[6],
+    module: moduleForLesson(index).name,
+    example: index === 0 ? starter : starter.replace('Hello, C++!', `Lesson ${index + 1}: ${row[1]}`)
+  };
+  lessonObj.exercises = {
+    mini: exerciseCatalog[`${lessonObj.id}-mini`] || createDefaultExercise(lessonObj, 'mini'),
+    medium: exerciseCatalog[`${lessonObj.id}-medium`] || createDefaultExercise(lessonObj, 'medium'),
+    hard: exerciseCatalog[`${lessonObj.id}-hard`] || createDefaultExercise(lessonObj, 'hard')
+  };
+  return lessonObj;
+});
+
+export const masteryExercises = [
+  exerciseCatalog['mastery-student-manager'],
+  exerciseCatalog['mastery-bank-hierarchy'],
+  exerciseCatalog['mastery-complex-calculator']
+].filter(Boolean);
+
+export const mastery = [
+  'Build a Student Manager class with constructors, input/output, and a display method.',
+  'Design a dynamic String class that correctly implements copy construction and destruction.',
+  'Create an employee hierarchy with virtual pay() and display all employee types through base pointers.',
+  'Implement a Complex class with friend-based +, <<, and >> overloads.',
+  'Create an abstract Shape hierarchy and compute areas from an array of Shape pointers.'
+];
