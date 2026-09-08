@@ -1,0 +1,12 @@
+{
+  "name": "cpp-coding-trainer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve .",
+    "build": "node --check src/app.js && node --check src/learningEngine.js",
+    "test": "node --test"
+  },
+  "dependencies": {}
+}
