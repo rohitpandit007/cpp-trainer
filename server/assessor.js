@@ -350,7 +350,7 @@ export async function assessSubmission(source, exerciseOrId, options = {}) {
     };
   } finally {
     try {
-      await fs.rm(tmpDir, { recursive: true, force: true });
+      await fs.rm(tmpDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     } catch {
       setTimeout(async () => {
         try {

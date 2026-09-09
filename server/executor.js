@@ -362,7 +362,7 @@ export async function executeCpp(source, options = {}) {
   } finally {
     // Guaranteed cleanup of temp folder and artifacts
     try {
-      await fs.rm(tmpDir, { recursive: true, force: true });
+      await fs.rm(tmpDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     } catch {
       // In case Windows holds a file lock briefly, attempt deferred retry
       setTimeout(async () => {

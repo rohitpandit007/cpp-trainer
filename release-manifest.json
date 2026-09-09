@@ -1,6 +1,6 @@
 {
   "releaseVersion": "1.0.0-rc1",
-  "timestamp": "2026-09-09T10:52:01.523Z",
+  "timestamp": "2026-09-09T11:37:42.060Z",
   "environment": {
     "nodeVersion": "v20.20.2",
     "platform": "win32",
@@ -98,7 +98,7 @@
     "src/visualization/conceptAnalyzer.js": "19d418335c81f7aa3cab977a29648f097d8c4f7b582f87f3b3c495e4754a5af9",
     "src/gamification/gamificationEngine.js": "7c429205facbf867a34fb2f2c0bba8143fe56aa1ea7d2449d9227b9eb3ba536e",
     "server/server.js": "9eaf0f5a9777be7595fb3b6151b00c0eab85aa9141472b3cb9832b6f8478cc84",
-    "server/executor.js": "7d18b88bef6a74bb4385d911068152084d0b123a5c359076bef9153409465ca5",
-    "server/assessor.js": "846a36d823441d6c19dfdee97dc12218bc3355cc1eb00464e102de51e04b2c1b"
+    "server/executor.js": "16394cca6a845179355feb8c0805179cc1426307375d06c0a21850ad6c26b63c",
+    "server/assessor.js": "765110bffb6e8d6decc5c6cd9660def98c3d7bcac81ad30a348edab288338d97"
   }
 }

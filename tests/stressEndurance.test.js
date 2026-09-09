@@ -50,7 +50,9 @@ test('Subphase F7: Performance & Long-Session Stress Testing', async (t) => {
     }
   });
 
-  await t.test('3. Temporary directory leak detector: verify that os.tmpdir() has zero leaked folders', () => {
+  await t.test('3. Temporary directory leak detector: verify that os.tmpdir() has zero leaked folders', async () => {
+    // Settle file locks on Windows
+    await new Promise(r => setTimeout(r, 150));
     const tmpEntries = fs.readdirSync(os.tmpdir(), { withFileTypes: true });
     const activeTrainerDirs = tmpEntries.filter(
       e => e.isDirectory() && (e.name.startsWith('cpp-trainer-') || e.name.startsWith('cpp-assess-'))
