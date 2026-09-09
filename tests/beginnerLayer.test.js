@@ -389,4 +389,18 @@ test('Beginner Learning Layer Test Battery', async (t) => {
       assert.equal(defaultProfile.completed.length, 0);
     });
   });
+
+  // ==========================================================================
+  // 10. BEGINNER HUB BACK NAVIGATION TEST
+  // ==========================================================================
+  await t.test('10. Beginner Hub Navigation: Back Button Option', async (st) => {
+    await st.test('renders back button referencing previous mode', () => {
+      const hubHtml = BeginnerUI.renderHub('models', {}, { previousMode: 'course' });
+      assert.ok(hubHtml.includes('data-action="beginner-back"'), 'Hub must contain beginner-back action');
+      assert.ok(hubHtml.includes('Back to Learning Path'), 'Hub must label return destination');
+
+      const hubPractice = BeginnerUI.renderHub('models', {}, { previousMode: 'practice' });
+      assert.ok(hubPractice.includes('Back to Practice Lab'));
+    });
+  });
 });

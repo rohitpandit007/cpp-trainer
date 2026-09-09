@@ -12,8 +12,18 @@ export class BeginnerUI {
   /**
    * Renders the comprehensive Beginner Hub view.
    */
-  static renderHub(activeTab = 'onboarding', engines = {}) {
+  static renderHub(activeTab = 'onboarding', engines = {}, options = {}) {
     const { onboarding, predict, debug, decompose } = engines;
+    const previousMode = options.previousMode || 'course';
+    const previousModeLabel = previousMode === 'practice'
+      ? 'Practice Lab'
+      : previousMode === 'challenge'
+      ? 'Challenge Mode'
+      : previousMode === 'mastery'
+      ? 'Mastery Test'
+      : previousMode === 'benchmark'
+      ? 'Benchmark'
+      : 'Learning Path';
 
     const tabs = [
       { id: 'onboarding', label: '🚀 Zero-to-C++', icon: '🚀' },
@@ -69,6 +79,11 @@ export class BeginnerUI {
     return `
       <main class="beginner-hub" role="region" aria-label="Beginner Learning Hub">
         <div class="hub-top-bar">
+          <div class="hub-nav-row">
+            <button class="hub-back-btn" data-action="beginner-back" title="Go back to ${previousModeLabel}" aria-label="Go back to ${previousModeLabel}">
+              ← Back to ${previousModeLabel}
+            </button>
+          </div>
           <div class="hub-brand">
             <span class="hub-badge">BEGINNER LEARNING LAYER</span>
             <h1>Zero-to-C++ Foundation & Mental Models</h1>

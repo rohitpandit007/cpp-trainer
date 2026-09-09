@@ -92,6 +92,7 @@ const state = {
   theme: savedTheme,
   lessonId: 'cpp-basics',
   mode: (migratedStored?.completed?.length === 0 && !migratedStored?.beginner?.onboarding?.completed && !migratedStored?.beginner?.onboarding?.skipped) ? 'beginner' : 'course',
+  previousMode: 'course',
   source: lessons[0].example,
   stdin: '',
   showStdin: false,
@@ -675,6 +676,8 @@ const renderBeginnerHub = () => {
     predict: state.predictEngine,
     debug: state.debugEngine,
     decompose: state.decompositionEngine
+  }, {
+    previousMode: state.previousMode || 'course'
   });
 };
 
@@ -828,6 +831,9 @@ app.addEventListener('click', async e => {
   }
 
   if (action === 'mode') {
+    if (state.mode !== el.dataset.mode) {
+      state.previousMode = state.mode;
+    }
     state.mode = el.dataset.mode;
     state.feedback = null;
     state.assessmentFeedback = null;
@@ -836,6 +842,25 @@ app.addEventListener('click', async e => {
     if (state.mode === 'beginner') {
       state.source = starterTemplate;
     } else if (state.mode === 'course') {
+      state.source = current().example;
+    } else {
+      state.currentIndependentExercise = getIndependentExercise(state.mode);
+      state.source = state.currentIndependentExercise?.starterCode || starterTemplate;
+    }
+    render();
+    if (state.mode === 'course') {
+      addLessonNavigation();
+    }
+    return;
+  }
+
+  if (action === 'beginner-back') {
+    state.mode = state.previousMode || 'course';
+    state.feedback = null;
+    state.assessmentFeedback = null;
+    state.hintIndex = 0;
+    state.showSolution = false;
+    if (state.mode === 'course') {
       state.source = current().example;
     } else {
       state.currentIndependentExercise = getIndependentExercise(state.mode);
