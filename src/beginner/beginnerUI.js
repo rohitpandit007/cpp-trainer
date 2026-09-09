@@ -73,7 +73,13 @@ export class BeginnerUI {
     } else if (activeTab === 'decompose') {
       contentHtml = decompose ? decompose.render() : '<p>Loading Decomposition Trainer...</p>';
     } else if (activeTab === 'scaffold') {
-      contentHtml = ScaffoldingEngine.renderProgressionOverview();
+      const scaffoldEng = new ScaffoldingEngine();
+      contentHtml = `
+        <div class="scaffold-hub-collection">
+          ${scaffoldEng.renderInteractiveLadder(options.currentLessonId || 'cpp-basics', null, options.profile || {})}
+          ${ScaffoldingEngine.renderProgressionOverview()}
+        </div>
+      `;
     }
 
     return `
@@ -120,6 +126,51 @@ export class BeginnerUI {
           <span>Start with the interactive <b>Zero-to-C++ Onboarding</b> to master what code is, how to run it, and how to fix errors before starting Lesson 1.</span>
         </div>
         <button class="banner-btn" data-action="mode" data-mode="beginner">Start Onboarding →</button>
+      </div>
+    `;
+  }
+
+  /**
+   * Renders a contextual syntax & "why am I writing this?" guide bar.
+   */
+  static renderContextualSyntaxBar(activeToken = null) {
+    const commonTokens = [
+      '#include', 'iostream', 'main', 'int', 'cout', 'cin', 'return',
+      ';', '{}', '()', '<<', '>>', '=', '=='
+    ];
+
+    const vocabEngine = new VocabularyEngine();
+    const whyEngine = new WhyExplanationEngine();
+    const activeTerm = activeToken ? vocabEngine.getTerm(activeToken) : null;
+    const activeWhy = activeToken ? whyEngine.getExplanation(activeToken) : null;
+
+    return `
+      <div class="contextual-syntax-guide" role="region" aria-label="Contextual C++ Syntax & Why Guide">
+        <div class="syntax-guide-header">
+          <span class="guide-badge">💡 CONTEXTUAL SYNTAX & WHY GUIDE</span>
+          <span class="guide-hint">Click any token to inspect plain-English meaning and why it is needed:</span>
+        </div>
+        <div class="syntax-token-chips" role="toolbar" aria-label="C++ Syntax Tokens">
+          ${commonTokens.map(tok => `
+            <button class="syntax-chip ${tok === activeToken ? 'active' : ''}" data-action="syntax-token-inspect" data-token="${tok}" aria-label="Inspect ${tok}">
+              <code>${tok}</code>
+            </button>
+          `).join('')}
+        </div>
+        ${activeTerm || activeWhy ? `
+          <div class="syntax-inspector-drawer">
+            ${activeTerm ? `
+              <div class="inspector-col vocab-col">
+                ${VocabularyEngine.renderTermCard(activeTerm)}
+              </div>
+            ` : ''}
+            ${activeWhy ? `
+              <div class="inspector-col why-col">
+                ${WhyExplanationEngine.renderCard(activeWhy)}
+              </div>
+            ` : ''}
+          </div>
+        ` : ''}
       </div>
     `;
   }

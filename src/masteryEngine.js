@@ -611,6 +611,50 @@ export function validateProfileSchema(profile) {
   return true;
 }
 
+export function sanitizeBeginnerState(rawBeginner) {
+  if (!rawBeginner || typeof rawBeginner !== 'object') {
+    return {
+      onboarding: { completed: false, currentStep: 1, skipped: false },
+      mentalModelsViewed: [],
+      predictionsCompleted: 0,
+      predictionsCorrect: 0,
+      debugsCompleted: 0,
+      decompositionsCompleted: 0,
+      scaffoldHistory: {}
+    };
+  }
+
+  const ob = rawBeginner.onboarding && typeof rawBeginner.onboarding === 'object' ? rawBeginner.onboarding : {};
+  const rawStep = Number.isInteger(ob.currentStep) ? ob.currentStep : 1;
+  const clampedStep = Math.min(12, Math.max(1, rawStep));
+
+  return {
+    onboarding: {
+      completed: Boolean(ob.completed),
+      currentStep: clampedStep,
+      skipped: Boolean(ob.skipped)
+    },
+    mentalModelsViewed: Array.isArray(rawBeginner.mentalModelsViewed)
+      ? [...new Set(rawBeginner.mentalModelsViewed.filter(x => typeof x === 'string'))]
+      : [],
+    predictionsCompleted: Number.isInteger(rawBeginner.predictionsCompleted) && rawBeginner.predictionsCompleted >= 0
+      ? rawBeginner.predictionsCompleted
+      : 0,
+    predictionsCorrect: Number.isInteger(rawBeginner.predictionsCorrect) && rawBeginner.predictionsCorrect >= 0
+      ? rawBeginner.predictionsCorrect
+      : 0,
+    debugsCompleted: Number.isInteger(rawBeginner.debugsCompleted) && rawBeginner.debugsCompleted >= 0
+      ? rawBeginner.debugsCompleted
+      : 0,
+    decompositionsCompleted: Number.isInteger(rawBeginner.decompositionsCompleted) && rawBeginner.decompositionsCompleted >= 0
+      ? rawBeginner.decompositionsCompleted
+      : 0,
+    scaffoldHistory: rawBeginner.scaffoldHistory && typeof rawBeginner.scaffoldHistory === 'object' && !Array.isArray(rawBeginner.scaffoldHistory)
+      ? { ...rawBeginner.scaffoldHistory }
+      : {}
+  };
+}
+
 /**
  * Migrates a legacy learner profile (Phase A/B or v1/v2) to Schema Version 3.
  * Preserves all completed lessons and topic wins/misses without data loss,
@@ -621,6 +665,7 @@ export function migrateProfile(rawProfile) {
 
   // If already a valid Version 3 profile, preserve object reference idempotently
   if (profile.version === 3 && profile.conceptMastery && typeof profile.conceptMastery === 'object' && validateProfileSchema(profile)) {
+    profile.beginner = sanitizeBeginnerState(profile.beginner);
     return profile;
   }
 
@@ -677,7 +722,7 @@ export function migrateProfile(rawProfile) {
   };
 
   const gamification = profile.gamification && typeof profile.gamification === 'object' ? profile.gamification : undefined;
-  const beginner = profile.beginner && typeof profile.beginner === 'object' ? profile.beginner : undefined;
+  const beginner = sanitizeBeginnerState(profile.beginner);
 
   const result = {
     version: 3,
@@ -687,14 +732,12 @@ export function migrateProfile(rawProfile) {
     recentMistakes,
     retrievalQueue,
     history,
-    stats
+    stats,
+    beginner
   };
 
   if (gamification) {
     result.gamification = gamification;
-  }
-  if (beginner) {
-    result.beginner = beginner;
   }
 
   return result;

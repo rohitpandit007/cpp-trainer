@@ -116,6 +116,7 @@ Inside the quotation marks \`"Hello, world!"\`, replace the text with:
 Notice that the quotation marks \`""\` must stay around the text. In C++, words wrapped in quotes are called **strings**.`,
     starterCode: `#include <iostream>\n\nint main() {\n    std::cout << "Hello, world!";\n    return 0;\n}\n`,
     targetCodeSnippet: 'Hello, CodeBloom!',
+    requiresCodeEdit: true,
     actionPrompt: 'Change the text inside the quotes to "Hello, CodeBloom!"'
   },
   {
@@ -141,7 +142,7 @@ Watch the output console: you should see your new greeting printed exactly as yo
 In C++, almost every instruction must end with a semicolon \`;\`. It tells the compiler: *"This instruction is finished."*
 
 **Your Task**: Delete the semicolon \`;\` at the end of the \`std::cout\` line, then click **▷ Run Code**.`,
-    starterCode: `#include <iostream>\n\nint main() {\n    std::cout << "Hello, CodeBloom!"\n    return 0;\n}\n`,
+    starterCode: `#include <iostream>\n\nint main() {\n    std::cout << "Hello, CodeBloom!";\n    return 0;\n}\n`,
     requiresRun: true,
     expectCompileError: true,
     actionPrompt: 'Delete the semicolon at the end of line 4, then click "▷ Run Code".'
@@ -158,7 +159,8 @@ It even told you the line number!
 The compiler is simply saying: *"I was reading your instructions, but before I reached 'return', I expected a semicolon to finish the previous thought."*
 
 Once you learn to read these clues, debugging becomes easy.`,
-    actionPrompt: 'Click "Continue" to fix the error.'
+    requiresInspection: true,
+    actionPrompt: 'Inspect the compiler diagnostic below, then click "Continue" to fix the error.'
   },
   {
     step: 11,
@@ -171,7 +173,7 @@ std::cout << "Hello, CodeBloom!";
 \`\`\`
 
 Then click **▷ Run Code** to verify that your program compiles cleanly again!`,
-    starterCode: `#include <iostream>\n\nint main() {\n    std::cout << "Hello, CodeBloom!";\n    return 0;\n}\n`,
+    starterCode: `#include <iostream>\n\nint main() {\n    std::cout << "Hello, CodeBloom!"\n    return 0;\n}\n`,
     expectedOutput: 'Hello, CodeBloom!',
     requiresRun: true,
     actionPrompt: 'Add the semicolon back and click "▷ Run Code".'
@@ -184,16 +186,18 @@ Then click **▷ Run Code** to verify that your program compiles cleanly again!`
     content: `You understand what programming is, how to write code, how to compile, and how to recover from an error.
 
 **Final Onboarding Challenge**:
-Write a program that displays:
+Write a program that displays two lines of output:
 \`\`\`text
 I am learning C++!
+My journey begins today!
 \`\`\`
 
-When you run it and the output matches, you will graduate from Onboarding and unlock the full learning path!`,
-    starterCode: `#include <iostream>\n\nint main() {\n    // Write your code here:\n    \n    return 0;\n}\n`,
-    expectedOutput: 'I am learning C++!',
+When you run it and both lines are printed, you will graduate from Onboarding and unlock the full learning path!`,
+    starterCode: `#include <iostream>\n\nint main() {\n    // Write your code here to output two lines:\n    \n    return 0;\n}\n`,
+    expectedOutput: 'I am learning C++!\nMy journey begins today!',
+    expectedLines: ['I am learning C++!', 'My journey begins today!'],
     requiresRun: true,
-    actionPrompt: 'Type your program to output "I am learning C++!" and click "▷ Run Code".'
+    actionPrompt: 'Write code to print both lines and click "▷ Run Code".'
   }
 ];
 

@@ -1,6 +1,6 @@
 {
   "releaseVersion": "1.0.0-rc1",
-  "timestamp": "2026-09-09T12:54:35.618Z",
+  "timestamp": "2026-09-09T13:29:21.618Z",
   "environment": {
     "nodeVersion": "v20.20.2",
     "platform": "win32",
@@ -85,11 +85,11 @@
     }
   ],
   "fileHashes": {
-    "src/app.js": "e7cfdbc0450c6f456505f0cc8318e114d77500025750e8d8b49aec9f910eb415",
+    "src/app.js": "742f74558381b38c7f8bae83d1f301fd1149089b8c1a4bcaeaabac7b85e9fd1c",
     "src/courseData.js": "2b36eb3a4aa595deed2c06a1c67f4dd7ab5349bb864c1e8d5e2138f2abb40c9d",
     "src/exerciseData.js": "7be91628ede3bb61496c9d8377af7568003c5d3a81dd62d4ec4fd7f3423486fe",
     "src/learningEngine.js": "052923b07efd902aa2a8e6b7f7e323c97270b41aae7624de7e116d1cd770adf1",
-    "src/masteryEngine.js": "9d5d2871db6382229b5089822bcf05258ef72028c04f17ec1c3ed942736fc0b7",
+    "src/masteryEngine.js": "eed1a1f5605a4ae63dba2d9694fa0e64ab3ce5d53bfdb843800c6b1c019704be",
     "src/eventBus.js": "ba16bce83b80903aa5e44ed33c256e7e15ab2ff85bfad7560bc50e2644e1e073",
     "src/benchmark/benchmarkData.js": "c69246eb8f514fda7b490c75a46a3e52035534461c3cda465f3809a2c938a56a",
     "src/benchmark/benchmarkEngine.js": "59e430423d4af0a71c26795f4bcef0a76348b6ad400dd80bf32be7af1e194f8a",

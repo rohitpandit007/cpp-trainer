@@ -15,17 +15,17 @@ import { OnboardingEngine } from '../src/beginner/onboardingEngine.js';
 import { MentalModelsEngine } from '../src/beginner/mentalModels.js';
 import { VocabularyEngine } from '../src/beginner/vocabularyEngine.js';
 import { WhyExplanationEngine } from '../src/beginner/whyExplanations.js';
-import { PredictEngine } from '../src/beginner/predictEngine.js';
+import { PredictEngine, normalizeOutput } from '../src/beginner/predictEngine.js';
 import { DebugEngine } from '../src/beginner/debugEngine.js';
 import { DecompositionEngine } from '../src/beginner/decompositionEngine.js';
-import { ScaffoldingEngine, SCAFFOLD_LEVELS } from '../src/beginner/scaffoldingEngine.js';
+import { ScaffoldingEngine, SCAFFOLD_LEVELS, SCAFFOLD_STAGES, STAGE_CONFIG } from '../src/beginner/scaffoldingEngine.js';
 import { BeginnerUI } from '../src/beginner/beginnerUI.js';
 
 import { LearningEventBus, LEARNING_EVENTS } from '../src/eventBus.js';
 import { GamificationEngine } from '../src/gamification/gamificationEngine.js';
 import { CompanionController } from '../src/companion/companionController.js';
 import { COMPANION_STATES } from '../src/companion/companionState.js';
-import { createDefaultProfile, migrateProfile, calculateMasteryLevel } from '../src/masteryEngine.js';
+import { createDefaultProfile, migrateProfile, calculateMasteryLevel, sanitizeBeginnerState } from '../src/masteryEngine.js';
 import { StorageManager } from '../src/storageManager.js';
 import { exerciseCatalog } from '../src/exerciseData.js';
 import { benchmarkBattery } from '../src/benchmark/benchmarkData.js';
@@ -55,7 +55,7 @@ test('Beginner Learning Layer Test Battery', async (t) => {
       assert.equal(ob.currentStep, 1);
     });
 
-    await st.test('code execution step requires matching stdout before advancing', () => {
+    await st.test('Step 6 first program requires matching stdout before advancing', () => {
       const bus = new LearningEventBus();
       const ob = new OnboardingEngine({ initialStep: 5, eventBus: bus }); // Step 6: first program
       assert.equal(ob.currentStep, 5);
@@ -71,19 +71,98 @@ test('Beginner Learning Layer Test Battery', async (t) => {
       assert.equal(ob.currentStep, 6, 'Must advance to step 7 on successful execution');
     });
 
-    await st.test('intentional mistake step (step 9) requires compile error to pass', () => {
+    await st.test('Step 6 cannot advance if run is not executed and passed', () => {
+      const ob = new OnboardingEngine({ initialStep: 5 }); // Step 6 requires run
+      const data = ob.getCurrentStepData();
+      assert.equal(data.requiresRun, true);
+      assert.equal(ob.stepFeedback, null);
+      const res = ob.evaluateStep(null);
+      assert.equal(res, false);
+      assert.equal(ob.currentStep, 5, 'Must remain on step 6 if run is not passed');
+    });
+
+    await st.test('Step 7 requires source code edit before continue succeeds', () => {
+      const bus = new LearningEventBus();
+      const ob = new OnboardingEngine({ initialStep: 6, eventBus: bus }); // Step 7
+      assert.equal(ob.currentStep, 6);
+
+      // Unmodified source fails
+      const unmodifiedRes = ob.evaluateStep();
+      assert.equal(unmodifiedRes, false, 'Unmodified code must not pass step 7');
+      assert.equal(ob.currentStep, 6);
+      assert.ok(ob.stepFeedback?.message.includes('replace') || ob.stepFeedback?.message.includes('Hello'));
+
+      // Modifying code to target greeting succeeds
+      ob.updateSource(ob.source.replace('Hello, world!', 'Hello, CodeBloom!'));
+      const modifiedRes = ob.evaluateStep();
+      assert.ok(modifiedRes, 'Modified code must pass step 7');
+      assert.equal(ob.currentStep, 7);
+    });
+
+    await st.test('Step 9 intentional mistake requires genuine compile error', () => {
       const bus = new LearningEventBus();
       const ob = new OnboardingEngine({ initialStep: 8, eventBus: bus }); // Step 9: intentional mistake
       assert.equal(ob.currentStep, 8);
 
       // Clean compile fails the objective
       const failRes = ob.evaluateStep({ status: 'success', stdout: 'Hello, CodeBloom!' });
-      assert.equal(failRes, false);
+      assert.equal(failRes, false, 'Clean compile must fail step 9');
+      assert.equal(ob.currentStep, 8);
 
-      // Triggering compile error passes step 9
+      // Triggering compile error passes step 9 and records diagnostic
       const passRes = ob.evaluateStep({ status: 'compile_error', stderr: "error: expected ';' before 'return'" });
       assert.ok(passRes);
       assert.equal(ob.currentStep, 9, 'Must advance to step 10 when compiler error is observed');
+      assert.ok(ob.lastCompilerError);
+      assert.ok(ob.lastCompilerError.includes("expected ';'"));
+    });
+
+    await st.test('Step 10 renders and allows inspection of compiler diagnostic', () => {
+      const ob = new OnboardingEngine({ initialStep: 9 }); // Step 10
+      ob.lastCompilerError = "main.cpp:4:36: error: expected ';' before 'return'";
+      const html = ob.render();
+      assert.ok(html.includes('ACTUAL COMPILER DIAGNOSTIC INSPECTED'));
+      assert.ok(html.includes("expected ';' before 'return'"));
+    });
+
+    await st.test('Step 11 repair requires clean compile and matching stdout', () => {
+      const bus = new LearningEventBus();
+      const ob = new OnboardingEngine({ initialStep: 10, eventBus: bus }); // Step 11
+      assert.equal(ob.currentStep, 10);
+
+      // Broken compile fails
+      const failRes = ob.evaluateStep({ status: 'compile_error', stderr: 'error' });
+      assert.equal(failRes, false);
+
+      // Fixed code succeeds
+      const passRes = ob.evaluateStep({ status: 'success', stdout: 'Hello, CodeBloom!' });
+      assert.ok(passRes);
+      assert.equal(ob.currentStep, 11);
+    });
+
+    await st.test('Step 12 final challenge requires two custom output lines', () => {
+      const bus = new LearningEventBus();
+      let completedFired = false;
+      bus.on(LEARNING_EVENTS.ONBOARDING_COMPLETED, () => {
+        completedFired = true;
+      });
+
+      const ob = new OnboardingEngine({ initialStep: 11, eventBus: bus }); // Step 12
+      assert.equal(ob.currentStep, 11);
+
+      // Single line output fails
+      const singleLineRes = ob.evaluateStep({ status: 'success', stdout: 'I am learning C++!' });
+      assert.equal(singleLineRes, false, 'Single line output must fail two-line challenge');
+      assert.equal(ob.completed, false);
+
+      // Two lines output succeeds and graduates onboarding
+      const twoLinesRes = ob.evaluateStep({
+        status: 'success',
+        stdout: 'I am learning C++!\nMy journey begins today!'
+      });
+      assert.ok(twoLinesRes);
+      assert.equal(ob.completed, true);
+      assert.ok(completedFired, 'ONBOARDING_COMPLETED event must fire upon step 12 graduation');
     });
 
     await st.test('skip onboarding sets skipped flag and allows resumption', () => {
@@ -142,11 +221,22 @@ test('Beginner Learning Layer Test Battery', async (t) => {
 
     await st.test('resolves core syntax tokens and keywords', () => {
       assert.ok(vocab.getTerm('int'));
+      assert.ok(vocab.getTerm('main'));
       assert.ok(vocab.getTerm('cout'));
       assert.ok(vocab.getTerm('cin'));
+      assert.ok(vocab.getTerm('return'));
+      assert.ok(vocab.getTerm('#include'));
+      assert.ok(vocab.getTerm('iostream'));
       assert.ok(vocab.getTerm(';'));
+      assert.ok(vocab.getTerm('{}'));
+      assert.ok(vocab.getTerm('()'));
       assert.ok(vocab.getTerm('<<'));
       assert.ok(vocab.getTerm('>>'));
+      assert.ok(vocab.getTerm('='));
+      assert.ok(vocab.getTerm('=='));
+      assert.ok(vocab.getTerm('&'));
+      assert.ok(vocab.getTerm('*'));
+      assert.ok(vocab.getTerm('::'));
       assert.ok(vocab.getTerm('class'));
       assert.ok(vocab.getTerm('object'));
     });
@@ -172,44 +262,140 @@ test('Beginner Learning Layer Test Battery', async (t) => {
       assert.ok(cardHtml.includes('2. Why do I need it?'));
       assert.ok(cardHtml.includes('3. What happens if I remove it?'));
     });
+
+    await st.test('contextual syntax bar renders token chips and inspector drawer', () => {
+      const barHtml = BeginnerUI.renderContextualSyntaxBar('cout');
+      assert.ok(barHtml.includes('data-token="cout"'));
+      assert.ok(barHtml.includes('syntax-chip active'));
+      assert.ok(barHtml.includes('syntax-inspector-drawer'));
+    });
   });
 
   // ==========================================================================
-  // 4. PREDICT-BEFORE-RUN TESTS
+  // 4. PREDICT-BEFORE-RUN TESTS (REAL EXECUTION DEPENDENCY)
   // ==========================================================================
   await t.test('4. Predict-Before-Run Engine & Anti-Mastery Inflation', async (st) => {
-    await st.test('predict flow: selection -> submit -> event emission', () => {
+    await st.test('stdout normalization unifies CRLF, trailing spaces, and blank lines', () => {
+      const raw = '  \r\nHello World!  \r\n42 \r\n\r\n';
+      const clean = normalizeOutput(raw);
+      assert.equal(clean, 'Hello World!\n42');
+    });
+
+    await st.test('correct prediction + correct actual execution => prediction_correct', () => {
       const bus = new LearningEventBus();
       let eventPayload = null;
+      let correctFired = false;
       bus.on(LEARNING_EVENTS.PREDICTION_SUBMITTED, (data) => {
         eventPayload = data;
+      });
+      bus.on(LEARNING_EVENTS.PREDICTION_CORRECT, () => {
+        correctFired = true;
       });
 
       const pe = new PredictEngine({ eventBus: bus });
       const challenge = pe.getCurrentChallenge();
       assert.ok(challenge);
 
-      // Select correct option
       pe.selectOption(challenge.correctIndex);
       const evalRes = pe.submitPrediction({ status: 'success', stdout: challenge.expectedOutput });
 
       assert.ok(evalRes);
+      assert.equal(evalRes.status, 'prediction_correct');
       assert.equal(evalRes.isCorrect, true);
       assert.ok(eventPayload);
       assert.equal(eventPayload.correct, true);
+      assert.ok(correctFired);
+    });
+
+    await st.test('wrong prediction + correct actual execution => prediction_incorrect', () => {
+      const bus = new LearningEventBus();
+      let incorrectFired = false;
+      bus.on(LEARNING_EVENTS.PREDICTION_INCORRECT, () => {
+        incorrectFired = true;
+      });
+
+      const pe = new PredictEngine({ eventBus: bus });
+      const challenge = pe.getCurrentChallenge();
+      const wrongIdx = (challenge.correctIndex + 1) % challenge.options.length;
+
+      pe.selectOption(wrongIdx);
+      const evalRes = pe.submitPrediction({ status: 'success', stdout: challenge.expectedOutput });
+
+      assert.ok(evalRes);
+      assert.equal(evalRes.status, 'prediction_incorrect');
+      assert.equal(evalRes.isCorrect, false);
+      assert.ok(incorrectFired);
+    });
+
+    await st.test('correct prediction + failed execution => execution_failure (NOT correct)', () => {
+      const bus = new LearningEventBus();
+      let correctFired = false;
+      let incorrectFired = false;
+      bus.on(LEARNING_EVENTS.PREDICTION_CORRECT, () => { correctFired = true; });
+      bus.on(LEARNING_EVENTS.PREDICTION_INCORRECT, () => { incorrectFired = true; });
+
+      const pe = new PredictEngine({ eventBus: bus });
+      const challenge = pe.getCurrentChallenge();
+
+      pe.selectOption(challenge.correctIndex);
+      // Execution fails with compilation error
+      const evalRes = pe.submitPrediction({
+        status: 'compile_error',
+        stderr: 'fatal error: compiler terminated'
+      });
+
+      assert.ok(evalRes);
+      assert.equal(evalRes.status, 'execution_failure');
+      assert.equal(evalRes.isCorrect, false, 'Execution failure must NEVER be reported as correct prediction');
+      assert.equal(correctFired, false, 'PREDICTION_CORRECT must NOT fire on execution failure');
+      assert.ok(incorrectFired, 'PREDICTION_INCORRECT must fire on execution failure');
+    });
+
+    await st.test('unexpected stdout results in prediction mismatch', () => {
+      const pe = new PredictEngine();
+      const challenge = pe.getCurrentChallenge();
+
+      pe.selectOption(challenge.correctIndex);
+      const evalRes = pe.submitPrediction({ status: 'success', stdout: 'completely unexpected output 9999' });
+
+      assert.equal(evalRes.isCorrect, false);
+      assert.equal(evalRes.status, 'prediction_incorrect');
+    });
+
+    await st.test('runtime error, timeout, or non-zero exit => execution_failure and isCorrect false', () => {
+      const pe = new PredictEngine();
+      const challenge = pe.getCurrentChallenge();
+      pe.selectOption(challenge.correctIndex);
+
+      // Runtime crash
+      const rtRes = pe.submitPrediction({ status: 'runtime_error', stderr: 'Segmentation fault (core dumped)' });
+      assert.equal(rtRes.status, 'execution_failure');
+      assert.equal(rtRes.isCorrect, false);
+
+      // Timeout
+      pe.resetState();
+      pe.selectOption(challenge.correctIndex);
+      const toRes = pe.submitPrediction({ status: 'timeout', stderr: 'Process execution timed out after 3000ms' });
+      assert.equal(toRes.status, 'execution_failure');
+      assert.equal(toRes.isCorrect, false);
+
+      // Non-zero exit code
+      pe.resetState();
+      pe.selectOption(challenge.correctIndex);
+      const exitRes = pe.submitPrediction({ status: 'execution_error', stderr: 'Exited with code 1' });
+      assert.equal(exitRes.status, 'execution_failure');
+      assert.equal(exitRes.isCorrect, false);
     });
 
     await st.test('prediction success does NOT inflate coding mastery profile', () => {
       const profile = createDefaultProfile();
       const initialMastery = calculateMasteryLevel(profile.conceptMastery['cpp-basics']);
 
-      // Simulating a prediction event
       const bus = new LearningEventBus();
       const pe = new PredictEngine({ eventBus: bus });
       pe.selectOption(1);
       pe.submitPrediction({ status: 'success', stdout: 'Output' });
 
-      // Ensure profile was not mutated directly by prediction
       const afterMastery = calculateMasteryLevel(profile.conceptMastery['cpp-basics']);
       assert.equal(afterMastery.level, initialMastery.level, 'Prediction must not increment coding mastery level');
     });
@@ -253,36 +439,75 @@ test('Beginner Learning Layer Test Battery', async (t) => {
   // ==========================================================================
   await t.test('6. Problem Decomposition Trainer & Scaffolding Fading', async (st) => {
     const bus = new LearningEventBus();
-    const decomp = new DecompositionEngine({ eventBus: bus });
 
-    await st.test('initializes with all 9 decomposition fields', () => {
-      assert.ok(decomp.userFields.hasOwnProperty('input'));
-      assert.ok(decomp.userFields.hasOwnProperty('output'));
-      assert.ok(decomp.userFields.hasOwnProperty('memory'));
-      assert.ok(decomp.userFields.hasOwnProperty('operations'));
-      assert.ok(decomp.userFields.hasOwnProperty('decisions'));
-      assert.ok(decomp.userFields.hasOwnProperty('repetition'));
-      assert.ok(decomp.userFields.hasOwnProperty('pseudocode'));
-      assert.ok(decomp.userFields.hasOwnProperty('code'));
+    await st.test('initializes with all 9 canonical decomposition fields including requiredConcepts', () => {
+      const decomp = new DecompositionEngine({ eventBus: bus });
+      const expectedFields = [
+        'input',
+        'output',
+        'memory',
+        'operations',
+        'decisions',
+        'repetition',
+        'requiredConcepts',
+        'pseudocode',
+        'code'
+      ];
+      for (const field of expectedFields) {
+        assert.ok(decomp.userFields.hasOwnProperty(field), `Decomposition must have field: ${field}`);
+      }
+      assert.equal(Object.keys(decomp.userFields).length, 9, 'Must have exactly 9 decomposition fields');
     });
 
     await st.test('scaffolding fading clears guided templates for independent practice', () => {
+      const decomp = new DecompositionEngine({ eventBus: bus });
       decomp.setScaffoldLevel('independent');
       assert.equal(decomp.userFields.input, '');
       assert.equal(decomp.userFields.output, '');
       assert.equal(decomp.userFields.pseudocode, '');
+      assert.equal(decomp.userFields.requiredConcepts, '');
 
       decomp.updateField('pseudocode', 'READ x\nPRINT x');
       assert.equal(decomp.userFields.pseudocode, 'READ x\nPRINT x');
     });
 
-    await st.test('completing decomposition fires event without error', () => {
+    await st.test('deterministic validation rejects empty or incomplete submissions', () => {
+      const decomp = new DecompositionEngine({ eventBus: bus });
+      decomp.setScaffoldLevel('independent');
+
+      // Empty submission
+      const emptyValidation = decomp.validateDecomposition();
+      assert.equal(emptyValidation.valid, false, 'Empty decomposition must be invalid');
+      assert.ok(emptyValidation.missing.length > 0, 'Must report missing fields');
+      assert.equal(decomp.completeDecomposition(), false, 'completeDecomposition must fail when invalid');
+
+      // Partial submission (only input provided)
+      decomp.updateField('input', 'Integer N');
+      const partialValidation = decomp.validateDecomposition();
+      assert.equal(partialValidation.valid, false);
+      assert.ok(partialValidation.missing.includes('output'));
+      assert.ok(partialValidation.missing.includes('pseudocode'));
+      assert.equal(decomp.completeDecomposition(), false);
+    });
+
+    await st.test('valid decomposition completes successfully and emits event', () => {
       let fired = false;
-      bus.on(LEARNING_EVENTS.DECOMPOSITION_COMPLETED, () => {
+      let payload = null;
+      bus.on(LEARNING_EVENTS.DECOMPOSITION_COMPLETED, (data) => {
         fired = true;
+        payload = data;
       });
-      decomp.completeDecomposition();
-      assert.ok(fired);
+
+      const decomp = new DecompositionEngine({ eventBus: bus });
+      // In guided mode, pre-filled fields pass validation
+      const val = decomp.validateDecomposition();
+      assert.equal(val.valid, true, 'Guided mode with template defaults must be valid');
+
+      const success = decomp.completeDecomposition();
+      assert.equal(success, true);
+      assert.ok(fired, 'DECOMPOSITION_COMPLETED event must fire on successful completion');
+      assert.ok(payload.problemId);
+      assert.equal(payload.scaffoldLevel, 'full');
     });
   });
 
@@ -298,6 +523,66 @@ test('Beginner Learning Layer Test Battery', async (t) => {
         assert.equal(lvl.level, i);
         assert.ok(lvl.name);
       }
+    });
+
+    await st.test('maps curriculum lessons to 5 canonical stages (Worked -> Faded -> Guided -> Independent -> Transfer)', () => {
+      const prog = scEngine.getProgressionForLesson('cpp-basics');
+      assert.ok(prog);
+      assert.equal(prog.lessonId, 'cpp-basics');
+      assert.ok(prog.stages.worked, 'Must define Worked stage');
+      assert.ok(prog.stages.faded, 'Must define Faded stage');
+      assert.ok(prog.stages.guided, 'Must define Guided stage');
+      assert.ok(prog.stages.independent, 'Must define Independent stage');
+      assert.ok(prog.stages.transfer, 'Must define Transfer stage');
+
+      // Independent stage must not leak solution
+      assert.equal(prog.stages.independent.revealsSolution, false, 'Independent stage must have revealsSolution: false');
+    });
+
+    await st.test('adaptive stage recommendation falls back on struggle and advances on competence', () => {
+      // Novice or struggling learner -> Worked example fallback
+      const struggleRec = scEngine.getRecommendedStage('lesson-1', {
+        consecutiveFailures: 2,
+        recentAccuracy: 0.2
+      });
+      assert.equal(struggleRec, SCAFFOLD_STAGES.WORKED, 'Struggling learner must receive Worked stage');
+
+      // Novice with 1 failure -> Faded step
+      const mildStruggleRec = scEngine.getRecommendedStage('lesson-1', {
+        consecutiveFailures: 1,
+        recentAccuracy: 0.5
+      });
+      assert.equal(mildStruggleRec, SCAFFOLD_STAGES.FADED);
+
+      // Competent learner with high accuracy -> Independent or Transfer
+      const competentRec = scEngine.getRecommendedStage('lesson-1', {
+        consecutiveFailures: 0,
+        recentAccuracy: 0.95,
+        streak: 5
+      });
+      assert.ok(
+        competentRec === SCAFFOLD_STAGES.INDEPENDENT || competentRec === SCAFFOLD_STAGES.TRANSFER,
+        'Competent learner must advance towards Independent/Transfer'
+      );
+    });
+
+    await st.test('lower-level scaffold evaluations verify recognition, ordering, and fill-blank', () => {
+      assert.equal(scEngine.evaluateRecognition('cout', 'cout'), true);
+      assert.equal(scEngine.evaluateRecognition('cin', 'cout'), false);
+
+      assert.equal(scEngine.evaluateOrdering(['line1', 'line2'], ['line1', 'line2']), true);
+      assert.equal(scEngine.evaluateOrdering(['line2', 'line1'], ['line1', 'line2']), false);
+
+      assert.equal(scEngine.evaluateFillBlank(['int', 'x'], ['int', 'x']), true);
+      assert.equal(scEngine.evaluateFillBlank(['double', 'x'], ['int', 'x']), false);
+    });
+
+    await st.test('renderInteractiveLadder outputs actionable start-scaffold-stage buttons', () => {
+      const html = scEngine.renderInteractiveLadder('cpp-basics');
+      assert.ok(html.includes('data-action="start-scaffold-stage"'));
+      assert.ok(html.includes('data-stage="worked"'));
+      assert.ok(html.includes('data-stage="independent"'));
+      assert.ok(html.includes('Start Independent Problem →'));
     });
 
     await st.test('Level 8 Independent Exercises do not leak answers', () => {
@@ -357,9 +642,9 @@ test('Beginner Learning Layer Test Battery', async (t) => {
   // ==========================================================================
   // 9. STORAGE & MIGRATION RESILIENCE
   // ==========================================================================
-  await t.test('9. Storage & Migration: Beginner State Preservation', async (st) => {
-    await st.test('preserves beginner partition across migrations without data loss', () => {
-      const legacyWithBeginner = {
+  await t.test('9. Storage & Migration: Beginner State Preservation & Corruption Recovery', async (st) => {
+    await st.test('preserves all 7 beginner properties across migrations without data loss', () => {
+      const fullBeginnerProfile = {
         version: 3,
         completed: ['cpp-basics'],
         topics: { 'cpp-basics': { wins: 2, misses: 0 } },
@@ -370,23 +655,80 @@ test('Beginner Learning Layer Test Battery', async (t) => {
         stats: { totalSubmissions: 2, passedSubmissions: 2, hintsRevealed: 0, solutionsRevealed: 0 },
         beginner: {
           onboarding: { completed: true, currentStep: 12, skipped: false },
-          predictionsCompleted: 5
+          mentalModelsViewed: ['model-a', 'model-b'],
+          predictionsCompleted: 5,
+          predictionsCorrect: 4,
+          debugsCompleted: 3,
+          decompositionsCompleted: 2,
+          scaffoldHistory: { 'lesson-1': 'independent' }
         }
       };
 
-      const migrated = migrateProfile(legacyWithBeginner);
+      const migrated = migrateProfile(fullBeginnerProfile);
       assert.equal(migrated.version, 3);
-      assert.equal(migrated.completed[0], 'cpp-basics');
       assert.ok(migrated.beginner, 'Beginner partition must be preserved');
       assert.equal(migrated.beginner.onboarding.completed, true);
+      assert.equal(migrated.beginner.onboarding.currentStep, 12);
+      assert.deepEqual(migrated.beginner.mentalModelsViewed, ['model-a', 'model-b']);
       assert.equal(migrated.beginner.predictionsCompleted, 5);
+      assert.equal(migrated.beginner.predictionsCorrect, 4);
+      assert.equal(migrated.beginner.debugsCompleted, 3);
+      assert.equal(migrated.beginner.decompositionsCompleted, 2);
+      assert.equal(migrated.beginner.scaffoldHistory['lesson-1'], 'independent');
     });
 
-    await st.test('default profile without beginner partition defaults gracefully', () => {
+    await st.test('recovers from corrupted beginner state defensively', () => {
+      const corruptedBeginner = {
+        onboarding: { completed: 'not-a-bool', currentStep: 99, skipped: 'junk' },
+        mentalModelsViewed: 'not-an-array',
+        predictionsCompleted: -10,
+        predictionsCorrect: NaN,
+        debugsCompleted: 'three',
+        decompositionsCompleted: -1,
+        scaffoldHistory: null
+      };
+
+      const sanitized = sanitizeBeginnerState(corruptedBeginner);
+      assert.equal(typeof sanitized.onboarding.completed, 'boolean');
+      assert.equal(sanitized.onboarding.currentStep, 12, 'Out of bound step 99 clamped to 12');
+      assert.ok(Array.isArray(sanitized.mentalModelsViewed), 'Must recover as array');
+      assert.equal(sanitized.predictionsCompleted, 0, 'Negative count recovered to 0');
+      assert.equal(sanitized.predictionsCorrect, 0, 'NaN count recovered to 0');
+      assert.equal(sanitized.debugsCompleted, 0, 'Invalid string count recovered to 0');
+      assert.equal(sanitized.decompositionsCompleted, 0);
+      assert.equal(typeof sanitized.scaffoldHistory, 'object');
+      assert.ok(sanitized.scaffoldHistory !== null);
+    });
+
+    await st.test('migration is idempotent', () => {
+      const profile = {
+        version: 2,
+        completed: ['hello-cpp'],
+        beginner: {
+          predictionsCompleted: 2,
+          predictionsCorrect: 1
+        }
+      };
+
+      const mig1 = migrateProfile(profile);
+      const mig2 = migrateProfile(mig1);
+      assert.deepEqual(mig1.beginner, mig2.beginner, 'Repeated migrations must yield identical beginner state');
+    });
+
+    await st.test('default profile initializes all 7 beginner properties', () => {
       const defaultProfile = createDefaultProfile();
       assert.ok(defaultProfile);
       assert.equal(defaultProfile.version, 3);
-      assert.equal(defaultProfile.completed.length, 0);
+      assert.ok(defaultProfile.beginner, 'Default profile must include beginner partition');
+      assert.equal(defaultProfile.beginner.onboarding.completed, false);
+      assert.equal(defaultProfile.beginner.onboarding.currentStep, 1);
+      assert.equal(defaultProfile.beginner.onboarding.skipped, false);
+      assert.deepEqual(defaultProfile.beginner.mentalModelsViewed, []);
+      assert.equal(defaultProfile.beginner.predictionsCompleted, 0);
+      assert.equal(defaultProfile.beginner.predictionsCorrect, 0);
+      assert.equal(defaultProfile.beginner.debugsCompleted, 0);
+      assert.equal(defaultProfile.beginner.decompositionsCompleted, 0);
+      assert.deepEqual(defaultProfile.beginner.scaffoldHistory, {});
     });
   });
 

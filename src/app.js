@@ -117,7 +117,9 @@ const state = {
   }),
   predictEngine: new PredictEngine({ eventBus }),
   debugEngine: new DebugEngine({ eventBus }),
-  decompositionEngine: new DecompositionEngine({ eventBus })
+  decompositionEngine: new DecompositionEngine({ eventBus }),
+  scaffoldingEngine: new ScaffoldingEngine({ eventBus }),
+  contextualToken: null
 };
 
 let visualizer = null;
@@ -185,13 +187,32 @@ const save = () => {
     state.profile.gamification = gamificationEngine.state;
   }
   if (!state.profile.beginner) {
-    state.profile.beginner = {};
+    state.profile.beginner = {
+      onboarding: { completed: false, currentStep: 0, skipped: false },
+      mentalModelsViewed: [],
+      predictionsCompleted: 0,
+      predictionsCorrect: 0,
+      debugsCompleted: 0,
+      decompositionsCompleted: 0,
+      scaffoldHistory: {}
+    };
   }
   state.profile.beginner.onboarding = {
     completed: state.onboardingEngine.completed,
     currentStep: state.onboardingEngine.currentStep,
     skipped: state.onboardingEngine.skipped
   };
+  state.profile.beginner.mentalModelsViewed = Array.isArray(state.profile.beginner.mentalModelsViewed)
+    ? state.profile.beginner.mentalModelsViewed
+    : [];
+  state.profile.beginner.predictionsCompleted = Number(state.profile.beginner.predictionsCompleted) || 0;
+  state.profile.beginner.predictionsCorrect = Number(state.profile.beginner.predictionsCorrect) || 0;
+  state.profile.beginner.debugsCompleted = Number(state.profile.beginner.debugsCompleted) || 0;
+  state.profile.beginner.decompositionsCompleted = Number(state.profile.beginner.decompositionsCompleted) || 0;
+  state.profile.beginner.scaffoldHistory = (state.profile.beginner.scaffoldHistory && typeof state.profile.beginner.scaffoldHistory === 'object')
+    ? state.profile.beginner.scaffoldHistory
+    : {};
+
   storageManager.saveProfile(state.profile);
 };
 const esc = value => (value || '').replace(/[&<>]/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[x]));
@@ -564,6 +585,10 @@ const workspace = () => {
           <b>${difficulty === 'support' ? 'Let’s make this smaller' : difficulty === 'medium' ? 'You’re ready to stretch' : 'Start small, then grow'}</b>
           <span>${difficulty === 'support' ? 'You have had a few tough attempts. Use the easy task and hint first.' : difficulty === 'medium' ? 'You have been solving confidently. Try a medium task next.' : 'Finish the easy task, then level up.'}</span>
         </div>
+        <details class="contextual-syntax-details" ${state.contextualToken ? 'open' : ''}>
+          <summary class="syntax-guide-summary">💡 Need help with C++ syntax? Quick "What & Why" Inspector</summary>
+          ${BeginnerUI.renderContextualSyntaxBar(state.contextualToken)}
+        </details>
       </section>
       <section class="code-zone">
         <div class="editor-top">
@@ -677,7 +702,9 @@ const renderBeginnerHub = () => {
     debug: state.debugEngine,
     decompose: state.decompositionEngine
   }, {
-    previousMode: state.previousMode || 'course'
+    previousMode: state.previousMode || 'course',
+    currentLessonId: state.lessonId || 'cpp-basics',
+    profile: state.profile
   });
 };
 
@@ -879,8 +906,71 @@ app.addEventListener('click', async e => {
     return;
   }
 
+  if (action === 'start-scaffold-stage') {
+    const lessonId = el.dataset.lessonId || state.lessonId || 'cpp-basics';
+    const stage = el.dataset.stage;
+    const progression = state.scaffoldingEngine.getProgressionForLesson(lessonId);
+    const stgData = progression.stages[stage];
+
+    state.lessonId = lessonId;
+    state.previousMode = 'beginner';
+
+    if (stage === 'worked') {
+      state.mode = 'course';
+      state.source = stgData?.code || current().example;
+      state.exercise = 'mini';
+    } else if (stage === 'faded') {
+      state.mode = 'course';
+      state.exercise = 'mini';
+      const ex = currentExercise();
+      state.source = stgData?.starterCode || ex?.starterCode || starterTemplate;
+    } else if (stage === 'guided') {
+      state.mode = 'course';
+      state.exercise = 'medium';
+      const ex = currentExercise();
+      state.source = stgData?.starterCode || ex?.starterCode || starterTemplate;
+    } else if (stage === 'independent') {
+      state.mode = 'course';
+      state.exercise = 'hard';
+      const ex = currentExercise();
+      state.source = stgData?.starterCode || ex?.starterCode || starterTemplate;
+      state.showSolution = false;
+    } else if (stage === 'transfer') {
+      state.mode = 'benchmark';
+      state.currentIndependentExercise = getIndependentExercise('benchmark');
+      state.source = state.currentIndependentExercise?.starterCode || starterTemplate;
+    }
+
+    if (state.profile.beginner) {
+      state.profile.beginner.scaffoldHistory[lessonId] = stage;
+    }
+    save();
+    render();
+    if (state.mode === 'course') {
+      addLessonNavigation();
+    }
+    return;
+  }
+
   if (action === 'onboarding-continue') {
-    const res = state.onboardingEngine.advanceStep();
+    const cur = state.onboardingEngine.getCurrentStepData();
+    let res;
+    if (cur.requiresCodeEdit) {
+      res = state.onboardingEngine.evaluateStep();
+      if (!res) {
+        render();
+        return;
+      }
+    } else if (cur.requiresRun) {
+      if (!state.onboardingEngine.stepFeedback?.passed) {
+        state.onboardingEngine.stepFeedback = { passed: false, message: 'Please run the code successfully before continuing.' };
+        render();
+        return;
+      }
+      res = state.onboardingEngine.advanceStep();
+    } else {
+      res = state.onboardingEngine.advanceStep();
+    }
     if (res && res.completed) {
       state.mode = 'course';
       save();
@@ -928,6 +1018,10 @@ app.addEventListener('click', async e => {
     const optIdx = Number(el.dataset.optIdx);
     const model = new MentalModelsEngine().getModel(modelId);
     if (model) {
+      if (state.profile.beginner && !state.profile.beginner.mentalModelsViewed.includes(modelId)) {
+        state.profile.beginner.mentalModelsViewed.push(modelId);
+        save();
+      }
       const card = el.closest('.mental-model-card');
       if (card) {
         card.outerHTML = MentalModelsEngine.renderCard(model, {
@@ -936,6 +1030,13 @@ app.addEventListener('click', async e => {
         });
       }
     }
+    return;
+  }
+
+  if (action === 'syntax-token-inspect') {
+    const tok = el.dataset.token;
+    state.contextualToken = state.contextualToken === tok ? null : tok;
+    render();
     return;
   }
 
@@ -967,10 +1068,19 @@ app.addEventListener('click', async e => {
       });
       const execResult = await res.json();
       state.predictEngine.submitPrediction(execResult);
+      if (state.profile.beginner) {
+        state.profile.beginner.predictionsCompleted = (state.profile.beginner.predictionsCompleted || 0) + 1;
+        if (state.predictEngine.state.isCorrect) {
+          state.profile.beginner.predictionsCorrect = (state.profile.beginner.predictionsCorrect || 0) + 1;
+        }
+      }
       save();
       render();
     } catch (err) {
-      state.predictEngine.submitPrediction({ status: 'execution_error', stdout: challenge.expectedOutput });
+      state.predictEngine.submitPrediction({ status: 'execution_error', error: err.message, stderr: 'Execution request failed' });
+      if (state.profile.beginner) {
+        state.profile.beginner.predictionsCompleted = (state.profile.beginner.predictionsCompleted || 0) + 1;
+      }
       save();
       render();
     }
@@ -1012,7 +1122,10 @@ app.addEventListener('click', async e => {
         body: JSON.stringify({ source: state.debugEngine.state.userSource, stdin: '' })
       });
       const execResult = await res.json();
-      state.debugEngine.evaluateFix(execResult);
+      const passed = state.debugEngine.evaluateFix(execResult);
+      if (passed && state.profile.beginner) {
+        state.profile.beginner.debugsCompleted = (state.profile.beginner.debugsCompleted || 0) + 1;
+      }
       save();
       render();
     } catch (err) {
@@ -1035,7 +1148,14 @@ app.addEventListener('click', async e => {
   }
 
   if (action === 'decomp-complete') {
-    state.decompositionEngine.completeDecomposition();
+    const ok = state.decompositionEngine.completeDecomposition();
+    if (!ok) {
+      render();
+      return;
+    }
+    if (state.profile.beginner) {
+      state.profile.beginner.decompositionsCompleted = (state.profile.beginner.decompositionsCompleted || 0) + 1;
+    }
     state.source = state.decompositionEngine.userFields.code;
     state.mode = 'course';
     save();

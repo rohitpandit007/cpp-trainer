@@ -14,6 +14,7 @@ export class DecompositionEngine {
     this.eventBus = options.eventBus || null;
     this.currentIndex = 0;
     this.scaffoldLevel = options.scaffoldLevel || 'full'; // 'full' | 'faded' | 'independent'
+    this.feedback = null;
     this.userFields = {
       input: '',
       output: '',
@@ -21,9 +22,11 @@ export class DecompositionEngine {
       operations: '',
       decisions: '',
       repetition: '',
+      requiredConcepts: '',
       pseudocode: '',
       code: ''
     };
+    this.resetUserFields();
   }
 
   getCurrentTemplate() {
@@ -39,16 +42,47 @@ export class DecompositionEngine {
 
   resetUserFields() {
     const cur = this.getCurrentTemplate();
-    this.userFields = {
-      input: this.scaffoldLevel === 'full' ? cur.steps.input : '',
-      output: this.scaffoldLevel === 'full' ? cur.steps.output : '',
-      memory: this.scaffoldLevel === 'full' ? cur.steps.memory : '',
-      operations: this.scaffoldLevel === 'full' ? cur.steps.operations : '',
-      decisions: this.scaffoldLevel === 'full' ? cur.steps.decisions : '',
-      repetition: this.scaffoldLevel === 'full' ? cur.steps.repetition : '',
-      pseudocode: this.scaffoldLevel === 'full' ? cur.steps.pseudocode : '',
-      code: cur.starterCode
-    };
+    this.feedback = null;
+    const conceptsStr = cur.steps.concepts ? (Array.isArray(cur.steps.concepts) ? cur.steps.concepts.join(', ') : String(cur.steps.concepts)) : '';
+
+    if (this.scaffoldLevel === 'full') {
+      this.userFields = {
+        input: cur.steps.input || '',
+        output: cur.steps.output || '',
+        memory: cur.steps.memory || '',
+        operations: cur.steps.operations || '',
+        decisions: cur.steps.decisions || '',
+        repetition: cur.steps.repetition || '',
+        requiredConcepts: conceptsStr,
+        pseudocode: cur.steps.pseudocode || '',
+        code: cur.starterCode || ''
+      };
+    } else if (this.scaffoldLevel === 'faded') {
+      this.userFields = {
+        input: cur.steps.input || '',
+        output: cur.steps.output || '',
+        memory: cur.steps.memory || '',
+        operations: '',
+        decisions: '',
+        repetition: '',
+        requiredConcepts: '',
+        pseudocode: '',
+        code: cur.starterCode || ''
+      };
+    } else {
+      // independent
+      this.userFields = {
+        input: '',
+        output: '',
+        memory: '',
+        operations: '',
+        decisions: '',
+        repetition: '',
+        requiredConcepts: '',
+        pseudocode: '',
+        code: cur.starterCode ? '#include <iostream>\nusing namespace std;\n\nint main() {\n    // Write independent solution here:\n    \n    return 0;\n}' : ''
+      };
+    }
   }
 
   updateField(fieldName, value) {
@@ -64,11 +98,50 @@ export class DecompositionEngine {
     }
   }
 
+  validateDecomposition() {
+    const { input, output, requiredConcepts, pseudocode, code } = this.userFields;
+    const missing = [];
+
+    if (this.scaffoldLevel === 'full') {
+      if (!input?.trim()) missing.push('input');
+      if (!output?.trim()) missing.push('output');
+      if (!pseudocode?.trim()) missing.push('pseudocode');
+      if (!code?.trim()) missing.push('code');
+      if (missing.length > 0) {
+        return { valid: false, reason: 'Please ensure all prefilled fields are intact.', missing };
+      }
+      return { valid: true, missing: [] };
+    }
+
+    // In faded or independent mode, required fields must be non-empty
+    if (!input?.trim()) missing.push('input');
+    if (!output?.trim()) missing.push('output');
+    if (!requiredConcepts?.trim()) missing.push('requiredConcepts');
+    if (!pseudocode?.trim()) missing.push('pseudocode');
+    if (!code?.trim()) missing.push('code');
+
+    if (missing.length > 0) {
+      return { valid: false, reason: `Required fields missing: ${missing.join(', ')}`, missing };
+    }
+
+    return { valid: true, missing: [] };
+  }
+
   completeDecomposition() {
     const cur = this.getCurrentTemplate();
+    const check = this.validateDecomposition();
+
+    if (!check.valid) {
+      this.feedback = { passed: false, message: check.reason };
+      return false;
+    }
+
+    this.feedback = { passed: true, message: 'Decomposition completed successfully! Code ready for workspace.' };
+
     if (this.eventBus) {
       this.eventBus.emit(LEARNING_EVENTS.DECOMPOSITION_COMPLETED, {
         templateId: cur.id,
+        problemId: cur.id,
         scaffoldLevel: this.scaffoldLevel
       });
     }
@@ -80,8 +153,6 @@ export class DecompositionEngine {
    */
   render() {
     const cur = this.getCurrentTemplate();
-    const isFaded = this.scaffoldLevel === 'faded';
-    const isIndependent = this.scaffoldLevel === 'independent';
 
     return `
       <div class="decomposition-card" data-decomp-id="${cur.id}">
@@ -126,17 +197,28 @@ export class DecompositionEngine {
             <span class="decomp-step-title">6. REPETITION</span>
             <input type="text" data-decomp-input="repetition" value="${this.userFields.repetition}" placeholder="Any loops (for / while)?" ${this.scaffoldLevel === 'full' ? 'readonly' : ''} />
           </div>
+
+          <div class="decomp-step-item">
+            <span class="decomp-step-title">7. REQUIRED CONCEPTS</span>
+            <input type="text" data-decomp-input="requiredConcepts" value="${this.userFields.requiredConcepts}" placeholder="What C++ concepts are needed? (e.g. int, cin, cout, if-else)" ${this.scaffoldLevel === 'full' ? 'readonly' : ''} />
+          </div>
         </div>
 
         <div class="decomp-pseudocode-section">
-          <span class="decomp-step-title">7 & 8. PSEUDOCODE (Plain Logic Plan)</span>
+          <span class="decomp-step-title">8. PSEUDOCODE (Plain Logic Plan)</span>
           <textarea class="decomp-pseudocode-area" data-decomp-input="pseudocode" placeholder="Write step-by-step plain English logic here...">${this.userFields.pseudocode}</textarea>
         </div>
 
         <div class="decomp-code-section">
-          <span class="decomp-step-title">9. TRANSLATE TO C++ CODE</span>
+          <span class="decomp-step-title">9. C++ IMPLEMENTATION</span>
           <textarea class="decomp-code-area" data-decomp-input="code" spellcheck="false">${this.userFields.code}</textarea>
         </div>
+
+        ${this.feedback ? `
+          <div class="decomp-feedback-banner ${this.feedback.passed ? 'success' : 'error'}">
+            ${this.feedback.passed ? '✓ ' : '⚠️ '}${this.feedback.message}
+          </div>
+        ` : ''}
 
         <div class="decomp-actions">
           <button class="decomp-complete-btn" data-action="decomp-complete">

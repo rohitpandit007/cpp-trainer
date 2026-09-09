@@ -16,6 +16,7 @@ export class OnboardingEngine {
     this.skipped = Boolean(options.skipped);
     this.source = this.steps[this.currentStep]?.starterCode || '';
     this.lastExecResult = null;
+    this.lastCompilerError = null;
     this.stepFeedback = null;
   }
 
@@ -45,11 +46,29 @@ export class OnboardingEngine {
   }
 
   /**
-   * Evaluates the current step following a real C++ compilation / execution.
+   * Evaluates the current step following a real C++ compilation / execution or code change.
    */
   evaluateStep(execResult = null) {
     const data = this.getCurrentStepData();
     this.lastExecResult = execResult;
+
+    // Step requiring source code modification (e.g. Step 7)
+    if (data.requiresCodeEdit) {
+      const hasTarget = data.targetCodeSnippet ? this.source.includes(data.targetCodeSnippet) : true;
+      const stillHasDefault = this.source.includes('"Hello, world!"');
+      if (!hasTarget || stillHasDefault) {
+        this.stepFeedback = {
+          passed: false,
+          message: `Please replace "Hello, world!" with "${data.targetCodeSnippet || 'Hello, CodeBloom!'}" before continuing.`
+        };
+        return false;
+      }
+      this.stepFeedback = {
+        passed: true,
+        message: 'Great job customizing your program! Now click Continue to run it.'
+      };
+      return this.advanceStep();
+    }
 
     // Steps that do not require running code can simply advance
     if (!data.requiresRun) {
@@ -61,9 +80,10 @@ export class OnboardingEngine {
       return false;
     }
 
-    // Step 9: Intentional Error
+    // Step 9: Intentional Compiler Error
     if (data.expectCompileError) {
       if (execResult.status === 'compile_error') {
+        this.lastCompilerError = execResult.stderr || execResult.rawError || "main.cpp:4:36: error: expected ';' before 'return'";
         this.stepFeedback = {
           passed: true,
           message: 'Excellent! You deliberately triggered a compiler error. Notice how the compiler flagged the missing semicolon.'
@@ -72,13 +92,13 @@ export class OnboardingEngine {
       } else {
         this.stepFeedback = {
           passed: false,
-          message: 'The code compiled without errors! Did you remove the semicolon at the end of line 4?'
+          message: 'The code compiled without errors! Did you delete the semicolon at the end of line 4?'
         };
         return false;
       }
     }
 
-    // Standard run verification
+    // Standard run verification - must not have compilation errors
     if (execResult.status === 'compile_error') {
       this.stepFeedback = {
         passed: false,
@@ -87,7 +107,26 @@ export class OnboardingEngine {
       return false;
     }
 
-    const cleanStdout = (execResult.stdout || '').trim();
+    const cleanStdout = (execResult.stdout || '').replace(/\r\n/g, '\n').trim();
+
+    // Step 12: Multi-line output challenge
+    if (data.expectedLines && Array.isArray(data.expectedLines)) {
+      const allLinesPresent = data.expectedLines.every(line => cleanStdout.includes(line.trim()));
+      if (allLinesPresent) {
+        this.stepFeedback = {
+          passed: true,
+          message: `Success! Both custom lines printed successfully:\n${cleanStdout}`
+        };
+        return this.advanceStep();
+      } else {
+        this.stepFeedback = {
+          passed: false,
+          message: `Expected both lines: "${data.expectedLines.join('" and "')}". Received: "${cleanStdout || '(no output)'}".`
+        };
+        return false;
+      }
+    }
+
     if (data.expectedOutput) {
       if (cleanStdout.includes(data.expectedOutput)) {
         this.stepFeedback = {
@@ -173,7 +212,18 @@ export class OnboardingEngine {
               </div>
             ` : ''}
 
-            ${!data.requiresRun ? `
+            ${(data.requiresInspection || data.id === 'reading-compiler-feedback') ? `
+              <div class="ob-diagnostic-viewer" role="region" aria-label="Compiler diagnostic inspection">
+                <span class="diag-label">🔴 ACTUAL COMPILER DIAGNOSTIC INSPECTED:</span>
+                <pre class="diag-code"><code>${this.lastCompilerError || "main.cpp:4:36: error: expected ';' before 'return'\n    4 |     std::cout << \"Hello, CodeBloom!\"\n      |                                    ^\n      |                                    ;"}</code></pre>
+                <div class="diag-notes">
+                  <p><strong>Clue 1 (Location):</strong> <code>main.cpp:4</code> indicates line 4.</p>
+                  <p><strong>Clue 2 (Message):</strong> <code>error: expected ';' before 'return'</code> explains that a semicolon was missing before the return statement.</p>
+                </div>
+              </div>
+            ` : ''}
+
+            ${(!data.requiresRun && !data.requiresCodeEdit) ? `
               <div class="ob-next-row">
                 <button class="ob-primary-btn" data-action="onboarding-continue">
                   ${isLastStep ? 'Complete Onboarding & Enter CodeBloom 🎉' : 'Continue to Next Step →'}
@@ -182,22 +232,28 @@ export class OnboardingEngine {
             ` : ''}
           </div>
 
-          ${data.requiresRun ? `
+          ${(data.requiresRun || data.requiresCodeEdit) ? `
             <div class="ob-code-pane">
               <div class="ob-editor-bar">
                 <span><i></i> main.cpp</span>
-                <span class="ob-compiler-tag">Real C++ Compiler Active</span>
+                <span class="ob-compiler-tag">${data.requiresRun ? 'Real C++ Compiler Active' : 'C++ Code Editor'}</span>
               </div>
               <textarea class="ob-editor-textarea" data-onboarding-source spellcheck="false">${this.source}</textarea>
               <div class="ob-editor-actions">
-                <button class="ob-run-btn" data-action="onboarding-run">
-                  ▷ Run Code
-                </button>
-                ${this.stepFeedback?.passed ? `
-                  <button class="ob-advance-btn" data-action="onboarding-continue">
-                    ${isLastStep ? 'Complete Onboarding & Enter CodeBloom 🎉' : 'Next Step →'}
+                ${data.requiresRun ? `
+                  <button class="ob-run-btn" data-action="onboarding-run">
+                    ▷ Run Code
                   </button>
-                ` : ''}
+                  ${this.stepFeedback?.passed ? `
+                    <button class="ob-advance-btn" data-action="onboarding-continue">
+                      ${isLastStep ? 'Complete Onboarding & Enter CodeBloom 🎉' : 'Next Step →'}
+                    </button>
+                  ` : ''}
+                ` : `
+                  <button class="ob-run-btn" data-action="onboarding-continue">
+                    ✓ Check Change & Continue →
+                  </button>
+                `}
               </div>
               ${this.lastExecResult ? `
                 <div class="ob-console-output">
