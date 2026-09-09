@@ -28,10 +28,10 @@ describeWithCompiler('Live Exercise Solution & Test Case Validation', { concurre
     'destructors-medium',
     'destructors-hard',
 
-    // Stream Operators (Lesson 18)
-    'streams-mini',
-    'streams-medium',
-    'streams-hard',
+    // Conditionals (Lesson 3)
+    'conditionals-mini',
+    'conditionals-medium',
+    'conditionals-hard',
 
     // Virtual Destructors & Polymorphism (Lesson 20)
     'runtime-mini',
@@ -80,9 +80,9 @@ describeWithCompiler('Live Exercise Solution & Test Case Validation', { concurre
     'operators-mini',
     'operators-medium',
     'operators-hard',
-    'string-operators-mini',
-    'string-operators-medium',
-    'string-operators-hard',
+    'loops-mini',
+    'loops-medium',
+    'loops-hard',
 
     // Module 9 & Cross-Module Polymorphic Capstones
     'combined-polymorphism-pipeline',
@@ -210,7 +210,7 @@ describeWithCompiler('Live Exercise Solution & Test Case Validation', { concurre
       'derived-constructors-hard',
       'overloading-hard',
       'operators-hard',
-      'string-operators-hard',
+      'loops-hard',
       'combined-operator-hierarchy',
       'capstone-library-lending',
       'capstone-geometry-pipeline',

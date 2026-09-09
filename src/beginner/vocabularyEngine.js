@@ -37,7 +37,13 @@ export class VocabularyEngine {
       'pointer': '*',
       'reference': '&',
       'address': '&',
-      'include': '#include'
+      'include': '#include',
+      'and': '&&',
+      'or': '||',
+      'not': '!',
+      'newline': 'endl',
+      'line break': 'endl',
+      'end line': 'endl'
     };
 
     if (aliases[clean] && this.terms[aliases[clean]]) {
@@ -53,6 +59,11 @@ export class VocabularyEngine {
 
   /**
    * Renders an interactive, accessible vocabulary term card.
+   * Displays the 4 structured dimensions:
+   * 1. What it means
+   * 2. What it does here
+   * 3. Why it is needed
+   * 4. Tiny code example
    */
   static renderTermCard(termObj) {
     if (!termObj) {
@@ -63,23 +74,32 @@ export class VocabularyEngine {
       `;
     }
 
+    const esc = str => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const whatItMeans = termObj.whatItMeans || termObj.plainDefinition;
+    const whatItDoesHere = termObj.whatItDoesHere || termObj.analogy;
+    const whyNeeded = termObj.whyNeeded || 'Essential foundational C++ language construct.';
+
     return `
-      <div class="vocab-card" role="region" aria-label="Vocabulary explanation for ${termObj.term}">
+      <div class="vocab-card" role="region" aria-label="Vocabulary explanation for ${esc(termObj.term)}">
         <div class="vocab-top">
-          <code class="vocab-token">${termObj.term}</code>
-          <span class="vocab-category">${termObj.category}</span>
+          <code class="vocab-token">${esc(termObj.term)}</code>
+          <span class="vocab-category">${esc(termObj.category)}</span>
         </div>
         <div class="vocab-def">
-          <strong>Plain Definition:</strong>
-          <p>${termObj.plainDefinition}</p>
+          <strong>1. What it means:</strong>
+          <p>${esc(whatItMeans)}</p>
         </div>
         <div class="vocab-analogy">
-          <strong>Everyday Analogy:</strong>
-          <p>💡 ${termObj.analogy}</p>
+          <strong>2. What it does here:</strong>
+          <p>💡 ${esc(whatItDoesHere)}</p>
+        </div>
+        <div class="vocab-why">
+          <strong>3. Why it is needed:</strong>
+          <p>⚙️ ${esc(whyNeeded)}</p>
         </div>
         <div class="vocab-example">
-          <strong>In Code:</strong>
-          <pre><code>${termObj.example}</code></pre>
+          <strong>4. In Code Example:</strong>
+          <pre><code>${esc(termObj.example)}</code></pre>
         </div>
       </div>
     `;

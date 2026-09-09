@@ -98,9 +98,20 @@ export class DecompositionEngine {
     }
   }
 
+  isPlaceholder(val) {
+    if (!val || typeof val !== 'string') return true;
+    const clean = val.trim();
+    if (clean.length < 3) return true;
+    const placeholderRegex = /^(todo|\.\.\.|\?+|asdf|test|none|n\/a|placeholder|abc|xyz)$/i;
+    if (placeholderRegex.test(clean)) return true;
+    return false;
+  }
+
   validateDecomposition() {
+    const cur = this.getCurrentTemplate();
     const { input, output, requiredConcepts, pseudocode, code } = this.userFields;
     const missing = [];
+    const issues = [];
 
     if (this.scaffoldLevel === 'full') {
       if (!input?.trim()) missing.push('input');
@@ -108,23 +119,101 @@ export class DecompositionEngine {
       if (!pseudocode?.trim()) missing.push('pseudocode');
       if (!code?.trim()) missing.push('code');
       if (missing.length > 0) {
-        return { valid: false, reason: 'Please ensure all prefilled fields are intact.', missing };
+        return { valid: false, reason: 'Please ensure all prefilled fields are intact.', missing, issues };
       }
-      return { valid: true, missing: [] };
+      return { valid: true, missing: [], issues: [] };
     }
 
-    // In faded or independent mode, required fields must be non-empty
-    if (!input?.trim()) missing.push('input');
-    if (!output?.trim()) missing.push('output');
-    if (!requiredConcepts?.trim()) missing.push('requiredConcepts');
-    if (!pseudocode?.trim()) missing.push('pseudocode');
-    if (!code?.trim()) missing.push('code');
+    // In faded or independent mode, required fields must be non-empty and non-placeholder
+    if (this.isPlaceholder(input)) missing.push('input');
+    if (this.isPlaceholder(output)) missing.push('output');
+    if (this.isPlaceholder(requiredConcepts)) missing.push('requiredConcepts');
+    if (this.isPlaceholder(pseudocode)) missing.push('pseudocode');
+    if (this.isPlaceholder(code)) missing.push('code');
 
     if (missing.length > 0) {
-      return { valid: false, reason: `Required fields missing: ${missing.join(', ')}`, missing };
+      return {
+        valid: false,
+        reason: `Required fields missing or incomplete: ${missing.join(', ')}. Please provide descriptive steps rather than placeholders.`,
+        missing,
+        issues: missing.map(f => `Field '${f}' requires descriptive problem breakdown`)
+      };
     }
 
-    return { valid: true, missing: [] };
+    // Semantic checks:
+    // 1. Pseudocode must have at least 2 distinct lines/steps
+    const pseudoLines = pseudocode.trim().split(/\r?\n/).filter(l => l.trim().length > 0);
+    const minSteps = cur.minPseudocodeSteps || 2;
+    if (pseudoLines.length < minSteps) {
+      issues.push(`Pseudocode plan must contain at least ${minSteps} distinct sequential steps`);
+    }
+
+    // 2. Code must contain basic structure (main and braces)
+    if (!code.includes('main') || !code.includes('{') || !code.includes('}')) {
+      issues.push('Code implementation must contain a valid int main() function body with { }');
+    }
+
+    if (issues.length > 0) {
+      return {
+        valid: false,
+        reason: issues.join('. '),
+        missing: [],
+        issues
+      };
+    }
+
+    return { valid: true, missing: [], issues: [] };
+  }
+
+  /**
+   * Returns a structured cognitive plan from the current decomposition fields.
+   */
+  getStructuredPlan() {
+    const cur = this.getCurrentTemplate();
+    const rawPseudo = this.userFields.pseudocode || cur?.steps?.pseudocode || '';
+    const steps = rawPseudo
+      .split(/\r?\n/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    return {
+      templateId: cur?.id,
+      problem: cur?.problem,
+      input: this.userFields.input || cur?.steps?.input || '',
+      output: this.userFields.output || cur?.steps?.output || '',
+      memory: this.userFields.memory || cur?.steps?.memory || '',
+      operations: this.userFields.operations || cur?.steps?.operations || '',
+      decisions: this.userFields.decisions || cur?.steps?.decisions || '',
+      repetition: this.userFields.repetition || cur?.steps?.repetition || '',
+      requiredConcepts: this.userFields.requiredConcepts || (Array.isArray(cur?.steps?.concepts) ? cur.steps.concepts.join(', ') : (cur?.steps?.concepts || '')),
+      pseudocode: rawPseudo,
+      pseudocodeSteps: steps.length > 0 ? steps : ['Read input', 'Execute logic', 'Produce output']
+    };
+  }
+
+  /**
+   * Constructs a structured decomposition template from an exercise specification.
+   */
+  static createPlanFromExercise(exercise) {
+    if (!exercise) return null;
+    const hints = exercise.hints || [];
+    return {
+      exerciseId: exercise.id,
+      problem: exercise.problemStatement || exercise.title,
+      input: exercise.inputFormat || 'Determine expected standard input (cin) or parameters',
+      output: exercise.outputFormat || 'Determine expected terminal output (cout) or return value',
+      memory: 'Identify necessary data types and variables to store state',
+      operations: 'Determine arithmetic, string operations, or method calls required',
+      decisions: 'Identify conditions or if/else branches needed',
+      repetition: 'Identify if any loops (for/while) are necessary',
+      requiredConcepts: Array.isArray(exercise.concepts) ? exercise.concepts.join(', ') : (exercise.concept || 'C++ basics'),
+      pseudocode: hints.length > 0
+        ? hints.map((h, i) => `Step ${i + 1}: ${h}`).join('\n')
+        : '1. Read and parse inputs\n2. Compute required state changes\n3. Format and output the final result',
+      pseudocodeSteps: hints.length > 0
+        ? hints
+        : ['Read and parse inputs', 'Compute required state changes', 'Format and output the final result']
+    };
   }
 
   completeDecomposition() {
@@ -137,12 +226,15 @@ export class DecompositionEngine {
     }
 
     this.feedback = { passed: true, message: 'Decomposition completed successfully! Code ready for workspace.' };
+    const plan = this.getStructuredPlan();
+    this.lastPlan = plan;
 
     if (this.eventBus) {
       this.eventBus.emit(LEARNING_EVENTS.DECOMPOSITION_COMPLETED, {
         templateId: cur.id,
         problemId: cur.id,
-        scaffoldLevel: this.scaffoldLevel
+        scaffoldLevel: this.scaffoldLevel,
+        plan
       });
     }
     return true;

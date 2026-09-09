@@ -8,6 +8,34 @@ import { LEARNING_EVENTS } from '../eventBus.js';
 import { lessons } from '../courseData.js';
 import { exerciseCatalog } from '../exerciseData.js';
 import { benchmarkBattery } from '../benchmark/benchmarkData.js';
+import { LESSON_WORKED_EXAMPLES } from './beginnerData.js';
+
+export function getTransferBenchmarkForLesson(lessonId) {
+  const map = {
+    'cpp-basics': 'bench-sensor-telemetry',
+    'keywords': 'bench-sensor-telemetry',
+    'conditionals': 'bench-transaction-ledger',
+    'loops': 'bench-flight-manifest',
+    'functions': 'bench-flight-manifest',
+    'classes': 'bench-sensor-telemetry',
+    'constructors': 'bench-snapshot-buffer',
+    'access': 'bench-sensor-telemetry',
+    'member-functions': 'bench-sensor-telemetry',
+    'object-flow': 'bench-flight-manifest',
+    'static': 'bench-transaction-ledger',
+    'friends': 'bench-transaction-ledger',
+    'inheritance': 'bench-fleet-management',
+    'runtime': 'bench-expression-ast',
+    'abstract': 'bench-expression-ast',
+    'derived-constructors': 'bench-fleet-management',
+    'overloading': 'bench-matrix-combiner',
+    'operators': 'bench-matrix-combiner',
+    'memory': 'bench-snapshot-buffer',
+    'destructors': 'bench-snapshot-buffer'
+  };
+  const targetId = map[lessonId] || 'bench-sensor-telemetry';
+  return benchmarkBattery.find(b => b.id === targetId) || benchmarkBattery[0];
+}
 
 export const SCAFFOLD_LEVELS = {
   1: { level: 1, name: 'Recognition', desc: 'Choose the correct code fragment among distractors.' },
@@ -150,12 +178,21 @@ export class ScaffoldingEngine {
    */
   getProgressionForLesson(lessonId = 'cpp-basics') {
     const lesson = lessons.find(l => l.id === lessonId) || lessons[0];
+    const workedData = LESSON_WORKED_EXAMPLES[lesson.id] || {
+      concept: lesson.title,
+      problemStatement: lesson.mission,
+      input: 'None (Direct Console Output)',
+      expectedOutput: '',
+      reasoningSteps: [],
+      lineExplanations: [],
+      fadingGuidance: ''
+    };
     const miniEx = typeof lesson.exercises.mini === 'string' ? exerciseCatalog[lesson.exercises.mini] : lesson.exercises.mini;
     const mediumEx = typeof lesson.exercises.medium === 'string' ? exerciseCatalog[lesson.exercises.medium] : lesson.exercises.medium;
     const hardEx = typeof lesson.exercises.hard === 'string' ? exerciseCatalog[lesson.exercises.hard] : lesson.exercises.hard;
 
-    // Associate unseen benchmark transfer problem
-    const transferProblem = benchmarkBattery.find(b => b.id.includes(lesson.module?.toLowerCase() || '') || b.id.includes(lesson.id)) || benchmarkBattery[0];
+    // Associate mapped unseen benchmark transfer problem
+    const transferProblem = getTransferBenchmarkForLesson(lesson.id);
 
     return {
       lessonId: lesson.id,
@@ -170,6 +207,14 @@ export class ScaffoldingEngine {
           code: lesson.example,
           explanation: lesson.explanation,
           mission: lesson.mission,
+          concept: workedData.concept,
+          problemStatement: workedData.problemStatement,
+          input: workedData.input,
+          expectedOutput: workedData.expectedOutput,
+          reasoningSteps: workedData.reasoningSteps,
+          lineExplanations: workedData.lineExplanations,
+          fadingGuidance: workedData.fadingGuidance,
+          isWorkedExample: true,
           revealsSolution: true
         },
         [SCAFFOLD_STAGES.FADED]: {
@@ -181,6 +226,8 @@ export class ScaffoldingEngine {
           exercise: miniEx,
           problemStatement: miniEx?.problemStatement,
           starterCode: miniEx?.starterCode,
+          referencePattern: lesson.example,
+          fadingGuidance: workedData.fadingGuidance,
           level: miniEx?.level || 1,
           revealsSolution: false
         },
@@ -193,6 +240,7 @@ export class ScaffoldingEngine {
           exercise: mediumEx,
           problemStatement: mediumEx?.problemStatement,
           starterCode: mediumEx?.starterCode,
+          hints: mediumEx?.hints || [],
           level: mediumEx?.level || 2,
           revealsSolution: false
         },
@@ -215,7 +263,9 @@ export class ScaffoldingEngine {
           title: transferProblem?.title || 'Unseen Problem Domain',
           assistance: 'Zero Assistance / Unseen Domain',
           benchmarkId: transferProblem?.id,
+          benchmark: transferProblem,
           problemStatement: transferProblem?.problemStatement,
+          transferPrompt: `Transfer Challenge: Apply your knowledge of ${lesson.title} to an unseen real-world problem domain with zero hints or templates.`,
           testCasesCount: transferProblem?.testCases?.length || 0,
           revealsSolution: false
         }
@@ -224,51 +274,91 @@ export class ScaffoldingEngine {
   }
 
   /**
-   * Adapts the recommended scaffolding stage based on objective learner signals:
-   * - Consecutive failures or solution reveals -> Fall back to more scaffolding
-   * - Successes at current level -> Advance to less scaffolding
+   * Adapts the recommended scaffolding stage based on stage-specific learner signals:
+   * - Recent struggle (solution revealed on current/recent attempt, consecutive failures, poor accuracy)
+   *   -> Fall back to WORKED or FADED
+   * - Transfer: strictly requires genuine independent success (history.independent_completed or concept.independentSuccesses > 0)
+   * - Independent: strictly requires verified guided completion (history.guided_completed or difficultySuccessfullyCompleted.medium > 0)
+   * - Guided: strictly requires verified faded completion (history.faded_completed or difficultySuccessfullyCompleted.easy > 0)
+   * - Default: WORKED
    */
   getRecommendedStage(lessonId = 'cpp-basics', profile = {}) {
-    const topic = profile.topics?.[lessonId] || {};
+    const history = profile.beginner?.scaffoldHistory?.[lessonId] || {};
     const concept = profile.conceptMastery?.[lessonId] || {};
-    const wins = typeof topic.wins === 'number' ? topic.wins : (concept.successfulAttempts || 0);
-    const misses = typeof topic.misses === 'number' ? topic.misses : (concept.failedAttempts || 0);
-    const solutionRevealed = Boolean(concept.solutionReveals > 0);
-    const recent = Array.isArray(concept.recentPerformance) ? concept.recentPerformance : [];
-    const recentFails = recent.slice(-3).filter(r => r === 'fail').length;
 
+    // 1. Solution Reveal on current/recent attempt detection:
+    // A historical reveal must NOT permanently trap the learner if later unassisted success occurred.
+    let recentSolutionRevealed = false;
+    if (typeof profile.recentSolutionRevealed === 'boolean') {
+      recentSolutionRevealed = profile.recentSolutionRevealed;
+    } else if (typeof concept.recentSolutionRevealed === 'boolean') {
+      recentSolutionRevealed = concept.recentSolutionRevealed;
+    } else if (profile.solutionRevealedCurrentAttempt || profile.solutionRevealed) {
+      recentSolutionRevealed = true;
+    } else if (Array.isArray(profile.history) && profile.history.length > 0) {
+      // Find the most recent attempt for this specific lesson
+      const lastAttemptForLesson = profile.history.slice().reverse().find(h =>
+        h.exerciseId?.startsWith(lessonId) || (Array.isArray(h.concepts) && h.concepts.includes(lessonId))
+      );
+      if (lastAttemptForLesson) {
+        recentSolutionRevealed = Boolean(lastAttemptForLesson.solutionRevealed);
+      } else if (profile.history[profile.history.length - 1]?.solutionRevealed) {
+        recentSolutionRevealed = true;
+      }
+    }
+
+    // 2. Failure & Struggle Metrics (Lesson-specific)
+    const recent = Array.isArray(concept.recentPerformance) ? concept.recentPerformance : [];
+    let endConsecutiveFails = 0;
+    for (let i = recent.length - 1; i >= 0; i--) {
+      if (recent[i] === 'fail') endConsecutiveFails++;
+      else break;
+    }
     const consecutiveFailures = typeof profile.consecutiveFailures === 'number'
       ? profile.consecutiveFailures
-      : recentFails;
+      : endConsecutiveFails;
+
+    const successfulAttempts = concept.successfulAttempts || 0;
+    const failedAttempts = concept.failedAttempts || 0;
+    const totalAttempts = successfulAttempts + failedAttempts;
     const recentAccuracy = typeof profile.recentAccuracy === 'number'
       ? profile.recentAccuracy
-      : (wins + misses > 0 ? wins / (wins + misses) : (wins > 0 ? 1.0 : 0.0));
-    const streak = typeof profile.streak === 'number' ? profile.streak : wins;
+      : (totalAttempts > 0 ? successfulAttempts / totalAttempts : 1.0);
 
-    // 1. Fallback on struggle:
-    if (solutionRevealed || consecutiveFailures >= 2 || recentAccuracy < 0.4 || (misses >= 3 && wins === 0)) {
+    // 3. Fallback on struggle:
+    // Severe struggle: solution revealed on current attempt, >=2 consecutive failures, or very low accuracy
+    if (recentSolutionRevealed || consecutiveFailures >= 2 || (failedAttempts >= 3 && successfulAttempts === 0) || (typeof profile.recentAccuracy === 'number' ? profile.recentAccuracy < 0.4 : (totalAttempts >= 3 && recentAccuracy < 0.4))) {
       return SCAFFOLD_STAGES.WORKED;
     }
-    if (consecutiveFailures >= 1 || recentAccuracy < 0.6) {
+
+    // Mild struggle: 1 consecutive failure at the end or accuracy < 0.6
+    if (consecutiveFailures >= 1 || (typeof profile.recentAccuracy === 'number' ? profile.recentAccuracy < 0.6 : (totalAttempts >= 3 && recentAccuracy < 0.6))) {
       return SCAFFOLD_STAGES.FADED;
     }
 
-    // 2. High competence: independent successes or mastery level >= 5 or streak >= 5
-    if (concept.independentSuccesses > 0 || (concept.level && concept.level >= 5) || streak >= 5) {
+    // 4. Progression ladder (Strictly Stage-Specific Evidence):
+    // Stage 5: Transfer — strictly requires verified Independent success for this lesson
+    const hasIndependent = Boolean(history.independent_completed) ||
+      (typeof concept.independentSuccesses === 'number' && concept.independentSuccesses > 0);
+    if (hasIndependent) {
       return SCAFFOLD_STAGES.TRANSFER;
     }
 
-    // 3. Medium-High competence: multiple wins or medium completed or streak >= 3
-    if (wins >= 2 || (concept.difficultySuccessfullyCompleted?.medium > 0) || (streak >= 3 && recentAccuracy >= 0.8)) {
+    // Stage 4: Independent — strictly requires verified Guided completion for this lesson
+    const hasGuided = Boolean(history.guided_completed) ||
+      ((concept.difficultySuccessfullyCompleted?.medium || 0) > 0);
+    if (hasGuided) {
       return SCAFFOLD_STAGES.INDEPENDENT;
     }
 
-    // 4. Basic competence: at least 1 win
-    if (wins >= 1 || (concept.difficultySuccessfullyCompleted?.easy > 0) || streak >= 1) {
+    // Stage 3: Guided — strictly requires verified Faded completion for this lesson
+    const hasFaded = Boolean(history.faded_completed) ||
+      ((concept.difficultySuccessfullyCompleted?.easy || 0) > 0);
+    if (hasFaded) {
       return SCAFFOLD_STAGES.GUIDED;
     }
 
-    // 5. Default starting stage
+    // Stage 1: Worked — default entry point
     return SCAFFOLD_STAGES.WORKED;
   }
 

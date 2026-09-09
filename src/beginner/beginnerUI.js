@@ -7,6 +7,7 @@ import { MentalModelsEngine } from './mentalModels.js';
 import { VocabularyEngine } from './vocabularyEngine.js';
 import { WhyExplanationEngine } from './whyExplanations.js';
 import { ScaffoldingEngine } from './scaffoldingEngine.js';
+import { INPUT_LAB_SNIPPETS, LESSON_WORKED_EXAMPLES } from './beginnerData.js';
 
 export class BeginnerUI {
   /**
@@ -42,6 +43,7 @@ export class BeginnerUI {
       const models = new MentalModelsEngine().getAllModels();
       contentHtml = `
         <div class="models-collection">
+          ${BeginnerUI.renderHandsOnInputLab(options.inputLab)}
           <div class="collection-header">
             <h2>The 5 Universal Mental Models of Programming</h2>
             <p>Master these 5 patterns and you can understand virtually any computer program.</p>
@@ -174,4 +176,504 @@ export class BeginnerUI {
       </div>
     `;
   }
+
+  /**
+   * Renders the interactive Hands-On Input Lab.
+   */
+  static renderHandsOnInputLab(labState = {}) {
+    const snippetKey = labState.snippetKey || 'doubler';
+    const snippet = INPUT_LAB_SNIPPETS[snippetKey] || INPUT_LAB_SNIPPETS.doubler;
+    const inputVal = labState.inputValue !== undefined ? labState.inputValue : snippet.defaultInput;
+    const executing = Boolean(labState.executing);
+    const output = labState.output;
+    const history = labState.history || [];
+
+    const esc = str => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    return `
+      <div class="hands-on-input-lab" role="region" aria-label="Hands-On Input (cin) Lab">
+        <div class="lab-header">
+          <div class="lab-title-row">
+            <span class="lab-badge">HANDS-ON INPUT LAB</span>
+            <h3>See <code>cin</code> in Action: Input ➔ Program ➔ Output</h3>
+          </div>
+          <p class="lab-desc">
+            Computer programs are dynamic! Using <code>cin</code>, your program reads live data from the keyboard.
+            Change the input value below and click <strong>Run Program with Input</strong> to observe how <em>different inputs produce different outputs</em> from the exact same C++ program.
+          </p>
+        </div>
+
+        <div class="lab-snippet-selector" role="tablist" aria-label="Input Lab Examples">
+          ${Object.values(INPUT_LAB_SNIPPETS).map(s => `
+            <button class="lab-snippet-btn ${s.id === snippetKey ? 'active' : ''}" data-action="input-lab-snippet" data-snippet-key="${s.id}">
+              ${s.title}
+            </button>
+          `).join('')}
+        </div>
+
+        <div class="input-lab-pipeline">
+          <!-- 1. INPUT -->
+          <div class="pipeline-box input-box">
+            <div class="box-header">
+              <span class="box-num">1</span>
+              <span class="box-title">INPUT (cin)</span>
+            </div>
+            <p class="box-sub">Enter data to feed into the program:</p>
+            <input type="text" class="lab-input-field" data-input-lab-val value="${esc(inputVal)}" placeholder="Type value here..." aria-label="Input value for cin" />
+            <button class="lab-run-btn ${executing ? 'running' : ''}" data-action="run-input-lab" ${executing ? 'disabled' : ''}>
+              ${executing ? '⏳ Running...' : '▷ Run Program with Input'}
+            </button>
+          </div>
+
+          <div class="pipeline-arrow">➔</div>
+
+          <!-- 2. PROGRAM -->
+          <div class="pipeline-box program-box">
+            <div class="box-header">
+              <span class="box-num">2</span>
+              <span class="box-title">PROGRAM (C++ Code)</span>
+            </div>
+            <p class="box-sub">${esc(snippet.description)}</p>
+            <pre class="lab-code-preview"><code>${esc(snippet.code)}</code></pre>
+          </div>
+
+          <div class="pipeline-arrow">➔</div>
+
+          <!-- 3. OUTPUT -->
+          <div class="pipeline-box output-box">
+            <div class="box-header">
+              <span class="box-num">3</span>
+              <span class="box-title">OUTPUT (Screen)</span>
+            </div>
+            <p class="box-sub">Result printed by <code>cout</code>:</p>
+            <div class="lab-terminal-output" aria-live="polite">
+              ${output ? `
+                <pre class="lab-stdout ${output.status === 'compile_error' ? 'error' : ''}"><code>${esc(output.stdout || output.stderr || '(no output produced)')}</code></pre>
+              ` : `
+                <div class="lab-empty-terminal">
+                  <span>Enter input on the left and click "Run Program with Input" to see live C++ output.</span>
+                </div>
+              `}
+            </div>
+          </div>
+        </div>
+
+        ${history.length > 1 ? `
+          <div class="lab-observation-card">
+            <div class="obs-title">🔬 Observation: Same Code, Different Data</div>
+            <p class="obs-text">Look at your previous runs with this program. Notice how changing standard input changes the terminal output:</p>
+            <div class="obs-runs">
+              ${history.map((h, i) => `
+                <div class="obs-run-item">
+                  <span class="obs-tag">Run #${i + 1}</span>
+                  <code>Input: "${esc(h.input)}"</code> ➔ <code>Output: "${esc(String(h.output).replace(/\n/g, ' '))}"</code>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  /**
+   * Renders the 3-stage visual flow indicator for C++ execution.
+   */
+  static renderDataFlowIndicator(usesCin = false, hasFeedback = false) {
+    return `
+      <div class="data-flow-indicator" aria-label="C++ Execution Flow">
+        <div class="flow-pill flow-input ${usesCin ? 'active' : ''}" title="Standard Input: Data passed via keyboard or cin">
+          <span class="flow-icon">📥</span>
+          <span class="flow-title">1. INPUT (cin)</span>
+          ${usesCin ? '<span class="flow-active-dot" title="Active">●</span>' : ''}
+        </div>
+        <span class="flow-arrow">➔</span>
+        <div class="flow-pill flow-code active" title="Program: C++ source code executing in main()">
+          <span class="flow-icon">⚙️</span>
+          <span class="flow-title">2. PROGRAM (Code)</span>
+        </div>
+        <span class="flow-arrow">➔</span>
+        <div class="flow-pill flow-output ${hasFeedback ? 'active' : ''}" title="Standard Output: Text sent to terminal via cout">
+          <span class="flow-icon">📤</span>
+          <span class="flow-title">3. OUTPUT (Screen)</span>
+          ${hasFeedback ? '<span class="flow-active-dot" title="Results ready">●</span>' : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Renders the 5-stage Scaffolding Navigation Bar for the lesson workspace.
+   */
+  static renderScaffoldingStageBar(lessonId, currentStage = 'worked', profile = {}) {
+    const scaffoldHistory = profile.beginner?.scaffoldHistory?.[lessonId] || {};
+    const stages = [
+      { id: 'worked', num: 1, icon: '📖', label: 'Worked Example' },
+      { id: 'faded', num: 2, icon: '✏️', label: 'Faded Practice' },
+      { id: 'guided', num: 3, icon: '🧭', label: 'Guided Practice' },
+      { id: 'independent', num: 4, icon: '🛡️', label: 'Independent Problem' },
+      { id: 'transfer', num: 5, icon: '🔬', label: 'Transfer Benchmark' }
+    ];
+
+    return `
+      <nav class="scaffold-stage-bar" role="navigation" aria-label="Pedagogical Scaffolding Ladder">
+        <div class="stage-bar-label">
+          <span class="stage-bar-badge">SCAFFOLDING LADDER</span>
+          <span class="stage-bar-help">Step-by-step assistance removal:</span>
+        </div>
+        <div class="stage-bar-track">
+          ${stages.map((stg, i) => {
+            const isCurrent = currentStage === stg.id;
+            const isCompleted = scaffoldHistory[stg.id + '_completed'] || (stg.id === 'worked' && scaffoldHistory.faded);
+            return `
+              ${i > 0 ? '<span class="stage-sep" aria-hidden="true">➔</span>' : ''}
+              <button class="stage-pill ${stg.id} ${isCurrent ? 'active' : ''} ${isCompleted ? 'completed' : ''}"
+                data-action="start-scaffold-stage"
+                data-lesson-id="${lessonId}"
+                data-stage="${stg.id}"
+                aria-current="${isCurrent ? 'step' : 'false'}"
+                title="Stage ${stg.num}: ${stg.label}">
+                <span class="pill-num">${isCompleted ? '✓' : stg.num}</span>
+                <span class="pill-icon">${stg.icon}</span>
+                <span class="pill-name">${stg.label}</span>
+              </button>
+            `;
+          }).join('')}
+        </div>
+      </nav>
+    `;
+  }
+
+  /**
+   * Renders the comprehensive Worked Example Walkthrough view.
+   */
+  static renderWorkedWalkthrough(progression, runOutput = null, isExecuting = false) {
+    const esc = str => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const worked = progression?.stages?.worked || {};
+    const lineExplanations = worked.lineExplanations || [];
+    const reasoningSteps = worked.reasoningSteps || [];
+
+    return `
+      <div class="worked-walkthrough-panel" role="region" aria-label="Worked Example Walkthrough">
+        <div class="worked-header">
+          <div class="worked-badge-row">
+            <span class="worked-badge">STAGE 1 · WORKED EXAMPLE</span>
+            <span class="concept-badge">💡 Concept: ${esc(worked.concept || progression?.lessonTitle)}</span>
+          </div>
+          <h3>${esc(progression?.lessonTitle)}: Expert Walkthrough</h3>
+          <p class="worked-lead">Observe how a complete C++ program solves this problem before attempting to write code yourself.</p>
+        </div>
+
+        <!-- 1. Problem & Expected Output -->
+        <div class="worked-problem-card">
+          <div class="problem-statement-section">
+            <h4>📋 The Problem</h4>
+            <p>${esc(worked.problemStatement || progression?.mission)}</p>
+          </div>
+          <div class="io-preview-row">
+            <div class="io-item">
+              <span class="io-tag">Input (stdin):</span>
+              <code>${esc(worked.input || 'None (Direct Console Output)')}</code>
+            </div>
+            <div class="io-item">
+              <span class="io-tag">Expected Output (cout):</span>
+              <pre class="io-code"><code>${esc(worked.expectedOutput || '(observe live output below)')}</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Problem -> Reasoning -> Code Thought Process -->
+        ${reasoningSteps.length > 0 ? `
+          <div class="worked-reasoning-card">
+            <h4>🧠 Programmer's Thought Process (Problem ➔ Reasoning ➔ Code)</h4>
+            <div class="reasoning-steps-list">
+              ${reasoningSteps.map((step, idx) => `
+                <div class="reasoning-step-item">
+                  <span class="reasoning-num">${idx + 1}</span>
+                  <p class="reasoning-text">${esc(step)}</p>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- 3. Line-by-Line Code Breakdown -->
+        <div class="worked-code-card">
+          <div class="code-card-header">
+            <h4>💻 Complete Working Solution & Line Explanations</h4>
+            <span class="code-badge">C++20 Clean Code</span>
+          </div>
+          <pre class="worked-code-display"><code>${esc(worked.code)}</code></pre>
+
+          ${lineExplanations.length > 0 ? `
+            <div class="line-explanations-list">
+              <h5>Line-by-Line Breakdown:</h5>
+              <div class="breakdown-grid">
+                ${lineExplanations.map(item => `
+                  <div class="breakdown-row">
+                    <code class="breakdown-line">${esc(item.line)}</code>
+                    <span class="breakdown-desc">${esc(item.explanation)}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- 4. Interactive Live Run & Output Verification -->
+        <div class="worked-execution-section">
+          <div class="exec-actions-bar">
+            <button class="worked-run-btn ${isExecuting ? 'running' : ''}" data-action="run-worked-example" ${isExecuting ? 'disabled' : ''}>
+              ${isExecuting ? '⏳ Compiling & Running...' : '▷ Run and Observe Output'}
+            </button>
+            <button class="worked-next-btn" data-action="start-scaffold-stage" data-lesson-id="${progression.lessonId}" data-stage="faded">
+              Next: Continue to Faded Practice ➔
+            </button>
+          </div>
+
+          <div class="worked-terminal" aria-live="polite">
+            <div class="terminal-header">
+              <span>🖥️ Terminal Output</span>
+              ${runOutput ? '<span class="status-pill pass">Compiled with g++</span>' : ''}
+            </div>
+            ${runOutput ? `
+              <pre class="terminal-stdout ${runOutput.status === 'compile_error' ? 'error' : ''}"><code>${esc(runOutput.stdout || runOutput.stderr || '(program exited cleanly with no output)')}</code></pre>
+            ` : `
+              <div class="terminal-empty">
+                <span>Click <strong>"▷ Run and Observe Output"</strong> to compile and execute this worked solution in real time.</span>
+              </div>
+            `}
+          </div>
+        </div>
+
+        ${worked.fadingGuidance ? `
+          <div class="worked-bridge-card">
+            <span class="bridge-tag">WHAT'S NEXT IN FADED PRACTICE</span>
+            <p>${esc(worked.fadingGuidance)}</p>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  /**
+   * Renders the Reference Worked Pattern callout for Faded Practice.
+   */
+  static renderReferenceWorkedPattern(progression, isOpen = false) {
+    const esc = str => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const workedCode = progression?.stages?.worked?.code || '';
+    const guidance = progression?.stages?.faded?.fadingGuidance || '';
+
+    return `
+      <div class="faded-guidance-container" role="region" aria-label="Faded Practice Pattern Reference">
+        ${guidance ? `
+          <div class="faded-prompt-banner">
+            <span class="faded-badge">STAGE 2 · FADED PRACTICE</span>
+            <strong>Pattern Completion Challenge:</strong>
+            <span>${esc(guidance)}</span>
+          </div>
+        ` : ''}
+        <details class="ref-pattern-details" ${isOpen ? 'open' : ''}>
+          <summary class="ref-pattern-summary">
+            <span>📖 Inspect Reference Worked Solution Pattern</span>
+            <span class="ref-toggle-icon">▾</span>
+          </summary>
+          <div class="ref-pattern-content">
+            <p class="ref-note">Compare your code with the pattern below to fill in the missing pieces:</p>
+            <pre class="ref-code"><code>${esc(workedCode)}</code></pre>
+          </div>
+        </details>
+      </div>
+    `;
+  }
+
+  /**
+   * Renders the Problem Decomposition & Guidance Guide for Guided Practice.
+   * Connects the cognitive decomposition plan directly to the workspace without exposing full solution code.
+   */
+  static renderDecompositionGuide(progression, ex = null, activePlan = null) {
+    const esc = str => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const hints = ex?.hints || progression?.stages?.guided?.hints || [];
+    const steps = activePlan?.pseudocodeSteps || (activePlan?.pseudocode ? activePlan.pseudocode.split(/\r?\n/).filter(s => s.trim().length > 0) : []);
+
+    return `
+      <div class="guided-decomposition-card" role="region" aria-label="Guided Practice Decomposition Plan">
+        <div class="guided-header">
+          <span class="guided-badge">STAGE 3 · GUIDED PRACTICE</span>
+          <h4>🧭 Step-by-Step Problem Decomposition Plan</h4>
+          <p>Use this structured breakdown to construct your C++ solution without cognitive overload:</p>
+        </div>
+
+        ${activePlan ? `
+          <div class="guided-active-plan-drawer">
+            <div class="plan-header-row">
+              <span class="active-plan-tag">🧠 ACTIVE COMPUTATIONAL PLAN</span>
+              <span class="plan-subtext">Derived from your problem decomposition</span>
+            </div>
+            <div class="active-plan-grid">
+              <div class="plan-chip">
+                <span class="chip-label">📥 Input (cin):</span>
+                <span class="chip-val">${esc(activePlan.input || 'Standard Input values')}</span>
+              </div>
+              <div class="plan-chip">
+                <span class="chip-label">📦 State / Memory:</span>
+                <span class="chip-val">${esc(activePlan.memory || 'Intermediate variables & types')}</span>
+              </div>
+              <div class="plan-chip">
+                <span class="chip-label">🔀 Decisions / Logic:</span>
+                <span class="chip-val">${esc(activePlan.decisions || 'Conditional branch or operations')}</span>
+              </div>
+              <div class="plan-chip">
+                <span class="chip-label">📤 Output (cout):</span>
+                <span class="chip-val">${esc(activePlan.output || 'Formatted result printed to screen')}</span>
+              </div>
+            </div>
+
+            ${steps.length > 0 ? `
+              <div class="plan-steps-box">
+                <span class="steps-title">📝 Step-by-Step Logic Steps:</span>
+                <ol class="plan-steps-ordered-list">
+                  ${steps.map(s => `<li>${esc(s)}</li>`).join('')}
+                </ol>
+              </div>
+            ` : ''}
+
+            <div class="plan-guidance-callout">
+              <span class="callout-icon">💡</span>
+              <span>Translate each step above into C++ in the editor. You are constructing the code — CodeBloom provides the plan, not the solution!</span>
+            </div>
+          </div>
+        ` : `
+          <div class="decomposition-steps-grid">
+            <div class="decomp-step">
+              <span class="step-num">Step 1</span>
+              <strong>Inputs</strong>
+              <p>${esc(ex?.inputFormat || 'Determine what variables or values enter the program.')}</p>
+            </div>
+            <div class="decomp-step">
+              <span class="step-num">Step 2</span>
+              <strong>Expected Output</strong>
+              <p>${esc(ex?.outputFormat || 'Determine what text or values cout must display.')}</p>
+            </div>
+            <div class="decomp-step">
+              <span class="step-num">Step 3</span>
+              <strong>Storage & Types</strong>
+              <p>Declare the appropriate types (int, double, string, or class objects) to hold intermediate state.</p>
+            </div>
+            <div class="decomp-step">
+              <span class="step-num">Step 4</span>
+              <strong>Algorithm Logic</strong>
+              <p>Implement the core operations, conditions, or loops in logical order.</p>
+            </div>
+          </div>
+        `}
+
+        ${hints.length > 0 ? `
+          <div class="guided-hints-preview">
+            <span class="hints-label">💡 Strategy Hints Available:</span>
+            <span>Use the <strong>"Need a hint?"</strong> button below to reveal progressive steps if you get stuck.</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  /**
+   * Renders the 5-Step Debug Reasoning Bridge in the workspace when an error occurs.
+   */
+  static renderWorkspaceDebugBridge(debugEngine) {
+    if (!debugEngine || !debugEngine.isWorkspaceActive) return '';
+    const esc = str => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const cur = debugEngine.getCurrentChallenge();
+
+    return `
+      <div class="workspace-debug-bridge-card" role="region" aria-label="5-Step Error Debug Reasoning">
+        <div class="ws-debug-header">
+          <div class="ws-debug-badge-row">
+            <span class="ws-debug-badge">🛠️ 5-STEP DEBUGGING WORKFLOW</span>
+            <span class="ws-debug-category">${esc(cur.category).toUpperCase()}</span>
+          </div>
+          <button class="ws-debug-close-btn" data-action="workspace-debug-close" title="Close Debug Assistant" aria-label="Close Debug Assistant">
+            ✕ Exit Debugger
+          </button>
+        </div>
+        ${debugEngine.render()}
+      </div>
+    `;
+  }
+
+  /**
+   * Renders the Unseen Transfer Benchmark Challenge Banner.
+   */
+  static renderTransferChallengeBanner(progression) {
+    const esc = str => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const transfer = progression?.stages?.transfer || {};
+
+    return `
+      <div class="transfer-challenge-banner" role="region" aria-label="Unseen Transfer Benchmark Challenge">
+        <div class="transfer-header-row">
+          <span class="transfer-badge">STAGE 5 · UNSEEN TRANSFER BENCHMARK</span>
+          <span class="assistance-zero-tag">Zero Scaffolding Mode</span>
+        </div>
+        <h3>🔬 Transfer Challenge: True Conceptual Independence</h3>
+        <p class="transfer-prompt">${esc(transfer.transferPrompt || 'Apply your knowledge to solve this completely unseen problem in a novel domain without templates or hints.')}</p>
+        <div class="transfer-meta">
+          <span>Target Benchmark: <strong>${esc(transfer.title || 'Novel Domain')}</strong></span>
+          <span>· Hidden Test Cases: <strong>${transfer.testCasesCount || 3}+ rigorous checks</strong></span>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Renders the Scaffolding Ladder Next-Step Banner upon passing an exercise.
+   */
+  static renderScaffoldingNextStepBanner(currentStage, lessonId, profile = {}) {
+    const nextMap = {
+      worked: { next: 'faded', label: 'Faded Practice', icon: '✏️', desc: 'Reconstruct the key parts of the worked pattern.' },
+      faded: { next: 'guided', label: 'Guided Practice', icon: '🧭', desc: 'Build a more substantial solution with structured decomposition.' },
+      guided: { next: 'independent', label: 'Independent Problem', icon: '🛡️', desc: 'Write the complete solution with zero hints or templates.' },
+      independent: { next: 'transfer', label: 'Unseen Transfer Benchmark', icon: '🔬', desc: 'Prove true conceptual mastery on a novel real-world problem domain.' }
+    };
+
+    const target = nextMap[currentStage];
+    if (!target) return '';
+
+    return `
+      <div class="scaffold-next-step-card" role="region" aria-label="Next Scaffolding Step Recommendation">
+        <div class="next-step-icon">${target.icon}</div>
+        <div class="next-step-info">
+          <span class="next-badge">PEDAGOGICAL LADDER · NEXT STAGE</span>
+          <strong>Advance to ${target.label}</strong>
+          <p>${target.desc}</p>
+        </div>
+        <button class="next-stage-btn" data-action="start-scaffold-stage" data-lesson-id="${lessonId}" data-stage="${target.next}">
+          Start ${target.label} →
+        </button>
+      </div>
+    `;
+  }
+
+  /**
+   * Renders the dynamic Line-by-Line Reading card for the given lesson.
+   */
+  static renderDynamicLineCard(lesson) {
+    const esc = str => String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const workedData = LESSON_WORKED_EXAMPLES[lesson?.id];
+    const explanations = workedData?.lineExplanations || [
+      { line: '#include <iostream>', explanation: 'brings in screen input and output tools.' },
+      { line: 'main()', explanation: 'is where every complete program begins.' },
+      { line: 'cout', explanation: 'prints the value after it.' },
+      { line: 'return 0;', explanation: 'says the program finished successfully.' }
+    ];
+    return `
+      <div class="line-card">
+        <b>How to read this ${esc(lesson?.title || '')} example</b>
+        <ol>
+          ${explanations.map(e => `<li><code>${esc(e.line)}</code> ${esc(e.explanation)}</li>`).join('')}
+        </ol>
+      </div>
+    `;
+  }
 }
+

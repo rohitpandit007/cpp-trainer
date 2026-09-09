@@ -27,7 +27,10 @@ import {
   DebugEngine,
   DecompositionEngine,
   ScaffoldingEngine,
-  BeginnerUI
+  BeginnerUI,
+  INPUT_LAB_SNIPPETS,
+  LESSON_WORKED_EXAMPLES,
+  getTransferBenchmarkForLesson
 } from './beginner/index.js';
 
 const app = typeof document !== 'undefined' ? document.querySelector('#app') : null;
@@ -119,7 +122,20 @@ const state = {
   debugEngine: new DebugEngine({ eventBus }),
   decompositionEngine: new DecompositionEngine({ eventBus }),
   scaffoldingEngine: new ScaffoldingEngine({ eventBus }),
-  contextualToken: null
+  contextualToken: null,
+  inputLab: {
+    snippetKey: 'doubler',
+    inputValue: '7',
+    executing: false,
+    output: null,
+    history: []
+  },
+  scaffoldStage: 'worked',
+  workedRunOutput: null,
+  workedExecuting: false,
+  refPatternOpen: false,
+  activeDecompositionPlan: null,
+  activeWorkspaceDebug: false
 };
 
 let visualizer = null;
@@ -180,6 +196,24 @@ const currentExercise = () => {
     return l.exercises[state.exercise];
   }
   return null;
+};
+
+export const detectCin = (source, exercise) => {
+  const codeHasCin = typeof source === 'string' && /\bcin\b/.test(source);
+  const exHasCin = exercise && (
+    (Array.isArray(exercise.concepts) && exercise.concepts.includes('cin')) ||
+    (typeof exercise.problemStatement === 'string' && /\bcin\b/.test(exercise.problemStatement)) ||
+    (typeof exercise.starterCode === 'string' && /\bcin\b/.test(exercise.starterCode)) ||
+    (typeof exercise.inputFormat === 'string' && !/none/i.test(exercise.inputFormat) && exercise.inputFormat.trim().length > 0)
+  );
+  return Boolean(codeHasCin || exHasCin);
+};
+
+export const checkAndAutoOpenStdin = () => {
+  const ex = state.mode === 'course' ? currentExercise() : state.currentIndependentExercise;
+  if (detectCin(state.source, ex)) {
+    state.showStdin = true;
+  }
 };
 
 const save = () => {
@@ -362,6 +396,13 @@ export const renderExecutionFeedback = () => {
           <pre><code>${esc(f.rawError)}</code></pre>
         </details>
       ` : ''}
+      ${!isSuccess && !state.activeWorkspaceDebug ? `
+        <div class="workspace-debug-prompt">
+          <button class="workspace-debug-trigger-btn" data-action="start-workspace-debug">
+            🛠️ Walk Through 5-Step Debug Reasoning (Observe ➔ Locate ➔ Explain ➔ Fix)
+          </button>
+        </div>
+      ` : ''}
     </div>
   `;
 };
@@ -472,11 +513,28 @@ export const renderAssessmentFeedback = () => {
           <pre><code>${esc(a.rawError)}</code></pre>
         </details>
       ` : ''}
+
+      ${!isSuccess && !state.activeWorkspaceDebug ? `
+        <div class="workspace-debug-prompt">
+          <button class="workspace-debug-trigger-btn" data-action="start-workspace-debug">
+            🛠️ Walk Through 5-Step Debug Reasoning (Observe ➔ Locate ➔ Explain ➔ Fix)
+          </button>
+        </div>
+      ` : ''}
+
+      ${isSuccess ? BeginnerUI.renderScaffoldingNextStepBanner(
+        state.scaffoldStage || (state.mode === 'benchmark' ? 'transfer' : state.exercise === 'mini' ? 'faded' : state.exercise === 'medium' ? 'guided' : 'independent'),
+        state.mode === 'course' ? (current()?.id || state.lessonId) : state.lessonId,
+        state.profile
+      ) : ''}
     </div>
   `;
 };
 
 export const renderFeedbackSlot = () => {
+  if (state.activeWorkspaceDebug && state.debugEngine.isWorkspaceActive) {
+    return BeginnerUI.renderWorkspaceDebugBridge(state.debugEngine);
+  }
   if (state.executing) return renderExecutionFeedback();
   if (state.assessing) return renderAssessmentFeedback();
   if (state.assessmentFeedback) return renderAssessmentFeedback();
@@ -535,18 +593,36 @@ const renderProgressiveHints = (exercise) => {
         `).join('')}
       </div>
 
-      ${state.hintIndex >= exercise.hints.length && !state.showSolution && state.mode !== 'mastery' ? `
+      ${state.hintIndex >= exercise.hints.length && !state.showSolution && state.mode !== 'mastery' && state.mode !== 'benchmark' && state.scaffoldStage !== 'independent' && state.exercise !== 'hard' && !exercise.isIndependent ? `
         <div class="solution-reveal-prompt">
           <button class="reveal-btn" data-action="reveal-solution">Reveal Reference Solution (Forfeits Mastery Credit on this attempt)</button>
         </div>
       ` : ''}
 
-      ${state.showSolution ? `
+      ${state.showSolution && state.scaffoldStage !== 'independent' && state.exercise !== 'hard' && !exercise.isIndependent && state.mode !== 'benchmark' ? `
         <div class="revealed-solution-box">
           <div class="sol-header">📖 CANONICAL REFERENCE SOLUTION</div>
           <pre><code>${esc(exercise.solution || '// Solution')}</code></pre>
         </div>
       ` : ''}
+    </div>
+  `;
+};
+
+const renderDynamicLineCard = (lesson) => {
+  const workedData = LESSON_WORKED_EXAMPLES[lesson.id];
+  const explanations = workedData?.lineExplanations || [
+    { line: '#include <iostream>', explanation: 'brings in screen input and output tools.' },
+    { line: 'main()', explanation: 'is where every complete program begins.' },
+    { line: 'cout', explanation: 'prints the value after it.' },
+    { line: 'return 0;', explanation: 'says the program finished successfully.' }
+  ];
+  return `
+    <div class="line-card">
+      <b>How to read this ${esc(lesson.title)} example</b>
+      <ol>
+        ${explanations.map(e => `<li><code>${esc(e.line)}</code> ${esc(e.explanation)}</li>`).join('')}
+      </ol>
     </div>
   `;
 };
@@ -562,25 +638,22 @@ const workspace = () => {
     !state.profile.beginner?.onboarding?.completed &&
     !state.profile.beginner?.onboarding?.skipped;
 
+  const progression = state.scaffoldingEngine.getProgressionForLesson(l.id);
+  const currentStage = state.scaffoldStage || (state.exercise === 'mini' ? 'faded' : state.exercise === 'medium' ? 'guided' : 'independent');
+
   return `<main class="workspace">
     <div class="crumb">${l.module} <span>/</span> Lesson ${lessons.indexOf(l) + 1}</div>
     <h2>${l.title}</h2>
     ${isBrandNewLearner ? BeginnerUI.renderWorkspaceBeginnerBanner(false) : ''}
     ${renderRecommendationBanner()}
+    ${BeginnerUI.renderScaffoldingStageBar(l.id, currentStage, state.profile)}
+    ${currentStage === 'worked' ? BeginnerUI.renderWorkedWalkthrough(progression, state.workedRunOutput, state.workedExecuting) : ''}
     <div class="lesson-body">
       <section class="teach">
         <div class="mission"><span>YOUR MISSION</span><strong>${l.mission}</strong></div>
         <h3>In plain language</h3>
         <p>${l.explanation}</p>
-        <div class="line-card">
-          <b>How to read the example</b>
-          <ol>
-            <li><code>#include &lt;iostream&gt;</code> brings in screen input and output tools.</li>
-            <li><code>main()</code> is where every complete program begins.</li>
-            <li><code>cout</code> prints the value after it.</li>
-            <li><code>return 0;</code> says the program finished successfully.</li>
-          </ol>
-        </div>
+        ${renderDynamicLineCard(l)}
         <div class="adaptive ${difficulty}">
           <b>${difficulty === 'support' ? 'Let’s make this smaller' : difficulty === 'medium' ? 'You’re ready to stretch' : 'Start small, then grow'}</b>
           <span>${difficulty === 'support' ? 'You have had a few tough attempts. Use the easy task and hint first.' : difficulty === 'medium' ? 'You have been solving confidently. Try a medium task next.' : 'Finish the easy task, then level up.'}</span>
@@ -591,14 +664,18 @@ const workspace = () => {
         </details>
       </section>
       <section class="code-zone">
+        ${BeginnerUI.renderDataFlowIndicator(detectCin(state.source, ex), Boolean(state.feedback || state.assessmentFeedback))}
         <div class="editor-top">
           <span><i></i> main.cpp</span>
           <button data-action="reset" aria-label="Reset starter code" title="Reset code to starter template">Reset example</button>
         </div>
         <textarea spellcheck="false" data-source aria-label="C++ Code Editor">${esc(state.source)}</textarea>
         ${state.showStdin ? `
-          <div class="stdin-box">
-            <div class="stdin-label">Standard Input (stdin for cin)</div>
+          <div class="stdin-box ${detectCin(state.source, ex) ? 'cin-highlight' : ''}">
+            <div class="stdin-label">
+              <span>Standard Input (stdin for cin)</span>
+              ${detectCin(state.source, ex) ? '<span class="cin-badge">cin detected</span>' : ''}
+            </div>
             <textarea data-stdin aria-label="Standard input console" placeholder="Values to pass to cin (space or newline separated)...">${esc(state.stdin)}</textarea>
           </div>
         ` : ''}
@@ -627,6 +704,8 @@ const workspace = () => {
         </div>
         <h3>${ex?.title || (state.exercise === 'mini' ? 'Easy Win' : state.exercise === 'medium' ? 'Build It Up' : 'Independent Build')}</h3>
         ${renderConceptMasteryRow(ex?.concepts, Boolean(ex?.isIndependent))}
+        ${currentStage === 'faded' ? BeginnerUI.renderReferenceWorkedPattern(progression, state.refPatternOpen) : ''}
+        ${currentStage === 'guided' ? BeginnerUI.renderDecompositionGuide(progression, ex, state.activeDecompositionPlan || DecompositionEngine.createPlanFromExercise(ex)) : ''}
         <p>${prompt}</p>
         ${renderProblemSpecs(ex)}
         ${renderTestPreview(ex)}
@@ -650,6 +729,7 @@ const independent = (type) => {
     <div class="eyebrow">${isBenchmark ? 'INDEPENDENT CODING PROFICIENCY BENCHMARK' : type === 'mastery' ? 'C++ PROGRAMMING MASTERY TEST' : type === 'challenge' ? 'CHALLENGE MODE' : 'PRACTICE LAB'}</div>
     <h1>${isBenchmark ? 'Unseen transfer evaluation. No hints, no templates.' : type === 'mastery' ? 'No hints. Just your craft.' : type === 'challenge' ? 'Solve it from the question.' : 'A fresh question is waiting.'}</h1>
     ${renderRecommendationBanner()}
+    ${isBenchmark ? BeginnerUI.renderTransferChallengeBanner(state.scaffoldingEngine.getProgressionForLesson(state.lessonId)) : ''}
     <article class="problem">
       <div class="problem-meta-top">
         <span>${isBenchmark ? 'UNSEEN TRANSFER CHALLENGE' : 'PROGRAMMING QUESTION'}</span>
@@ -663,14 +743,18 @@ const independent = (type) => {
       ${type !== 'mastery' && !isBenchmark ? renderProgressiveHints(ex) : ''}
     </article>
     <div class="independent-editor">
+      ${BeginnerUI.renderDataFlowIndicator(detectCin(state.source, ex), Boolean(state.feedback || state.assessmentFeedback))}
       <div class="editor-top">
         <span><i></i> solution.cpp</span>
         <button data-action="new-question" aria-label="Load a fresh question" title="Load a new random question">New question ↻</button>
       </div>
       <textarea data-source spellcheck="false" aria-label="C++ Solution Editor">${esc(state.source)}</textarea>
       ${state.showStdin ? `
-        <div class="stdin-box">
-          <div class="stdin-label">Standard Input (stdin for cin)</div>
+        <div class="stdin-box ${detectCin(state.source, ex) ? 'cin-highlight' : ''}">
+          <div class="stdin-label">
+            <span>Standard Input (stdin for cin)</span>
+            ${detectCin(state.source, ex) ? '<span class="cin-badge">cin detected</span>' : ''}
+          </div>
           <textarea data-stdin aria-label="Standard input console" placeholder="Values to pass to cin...">${esc(state.stdin)}</textarea>
         </div>
       ` : ''}
@@ -704,7 +788,8 @@ const renderBeginnerHub = () => {
   }, {
     previousMode: state.previousMode || 'course',
     currentLessonId: state.lessonId || 'cpp-basics',
-    profile: state.profile
+    profile: state.profile,
+    inputLab: state.inputLab
   });
 };
 
@@ -762,10 +847,21 @@ app.addEventListener('input', e => {
   if (e.target.matches('[data-source]')) {
     state.source = e.target.value;
     companionController.notifyTyping();
+    const curEx = state.mode === 'course' ? currentExercise() : state.currentIndependentExercise;
+    if (!state.showStdin && detectCin(state.source, curEx)) {
+      state.showStdin = true;
+      render();
+    }
   }
   if (e.target.matches('[data-stdin]')) state.stdin = e.target.value;
   if (e.target.matches('[data-onboarding-source]')) {
     state.onboardingEngine.updateSource(e.target.value);
+  }
+  if (e.target.matches('[data-onboarding-stdin]')) {
+    state.onboardingEngine.updateStdin(e.target.value);
+  }
+  if (e.target.matches('[data-input-lab-val]')) {
+    state.inputLab.inputValue = e.target.value;
   }
   if (e.target.matches('[data-debug-source]')) {
     state.debugEngine.updateUserSource(e.target.value);
@@ -816,6 +912,7 @@ app.addEventListener('click', async e => {
     state.hintIndex = 0;
     state.showSolution = false;
     state.mode = 'course';
+    checkAndAutoOpenStdin();
     render();
     addLessonNavigation();
     if (state.showVisualizer && visualizer) {
@@ -835,6 +932,7 @@ app.addEventListener('click', async e => {
       state.hintIndex = 0;
       state.showSolution = false;
       state.jumpToWorkspace = true;
+      checkAndAutoOpenStdin();
       render();
       addLessonNavigation();
       if (state.showVisualizer && visualizer) {
@@ -852,6 +950,7 @@ app.addEventListener('click', async e => {
     state.hintIndex = 0;
     state.showSolution = false;
     state.jumpToWorkspace = true;
+    checkAndAutoOpenStdin();
     render();
     addLessonNavigation();
     return;
@@ -874,6 +973,7 @@ app.addEventListener('click', async e => {
       state.currentIndependentExercise = getIndependentExercise(state.mode);
       state.source = state.currentIndependentExercise?.starterCode || starterTemplate;
     }
+    checkAndAutoOpenStdin();
     render();
     if (state.mode === 'course') {
       addLessonNavigation();
@@ -893,6 +993,7 @@ app.addEventListener('click', async e => {
       state.currentIndependentExercise = getIndependentExercise(state.mode);
       state.source = state.currentIndependentExercise?.starterCode || starterTemplate;
     }
+    checkAndAutoOpenStdin();
     render();
     if (state.mode === 'course') {
       addLessonNavigation();
@@ -913,42 +1014,99 @@ app.addEventListener('click', async e => {
     const stgData = progression.stages[stage];
 
     state.lessonId = lessonId;
+    state.scaffoldStage = stage;
     state.previousMode = 'beginner';
+    state.feedback = null;
+    state.assessmentFeedback = null;
+    state.hintIndex = 0;
 
     if (stage === 'worked') {
       state.mode = 'course';
       state.source = stgData?.code || current().example;
       state.exercise = 'mini';
+      state.workedRunOutput = null;
+      state.workedExecuting = false;
+      state.activeDecompositionPlan = null;
+      state.activeWorkspaceDebug = false;
     } else if (stage === 'faded') {
       state.mode = 'course';
       state.exercise = 'mini';
       const ex = currentExercise();
       state.source = stgData?.starterCode || ex?.starterCode || starterTemplate;
+      state.showSolution = false;
+      state.activeDecompositionPlan = null;
+      state.activeWorkspaceDebug = false;
     } else if (stage === 'guided') {
       state.mode = 'course';
       state.exercise = 'medium';
       const ex = currentExercise();
       state.source = stgData?.starterCode || ex?.starterCode || starterTemplate;
+      state.showSolution = false;
+      state.activeWorkspaceDebug = false;
+      if (!state.activeDecompositionPlan) {
+        state.activeDecompositionPlan = DecompositionEngine.createPlanFromExercise(ex);
+      }
     } else if (stage === 'independent') {
       state.mode = 'course';
       state.exercise = 'hard';
       const ex = currentExercise();
       state.source = stgData?.starterCode || ex?.starterCode || starterTemplate;
       state.showSolution = false;
+      state.activeDecompositionPlan = null;
+      state.activeWorkspaceDebug = false;
     } else if (stage === 'transfer') {
       state.mode = 'benchmark';
-      state.currentIndependentExercise = getIndependentExercise('benchmark');
+      state.currentIndependentExercise = getTransferBenchmarkForLesson(lessonId);
       state.source = state.currentIndependentExercise?.starterCode || starterTemplate;
+      state.showSolution = false;
+      state.activeDecompositionPlan = null;
+      state.activeWorkspaceDebug = false;
     }
 
     if (state.profile.beginner) {
-      state.profile.beginner.scaffoldHistory[lessonId] = stage;
+      if (!state.profile.beginner.scaffoldHistory[lessonId]) {
+        state.profile.beginner.scaffoldHistory[lessonId] = {};
+      } else if (typeof state.profile.beginner.scaffoldHistory[lessonId] === 'string') {
+        state.profile.beginner.scaffoldHistory[lessonId] = { current: state.profile.beginner.scaffoldHistory[lessonId] };
+      }
+      state.profile.beginner.scaffoldHistory[lessonId].current = stage;
     }
     save();
+    checkAndAutoOpenStdin();
     render();
     if (state.mode === 'course') {
       addLessonNavigation();
     }
+    return;
+  }
+
+  if (action === 'run-worked-example') {
+    state.workedExecuting = true;
+    render();
+    const l = current();
+    const progression = state.scaffoldingEngine.getProgressionForLesson(l.id);
+    const workedCode = progression?.stages?.worked?.code || l.example;
+    const rawInput = progression?.stages?.worked?.input;
+    const inputVal = (rawInput && rawInput.includes('None')) ? '' : (rawInput || '');
+
+    fetch('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: workedCode, stdin: inputVal })
+    })
+      .then(r => r.json())
+      .then(data => {
+        state.workedRunOutput = data;
+        state.workedExecuting = false;
+        render();
+        if (state.mode === 'course') addLessonNavigation();
+      })
+      .catch(err => {
+        state.workedRunOutput = { status: 'error', stderr: err.message };
+        state.workedExecuting = false;
+        render();
+        if (state.mode === 'course') addLessonNavigation();
+      });
     return;
   }
 
@@ -1000,7 +1158,7 @@ app.addEventListener('click', async e => {
       const res = await fetch('/api/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: state.onboardingEngine.source, stdin: '' })
+        body: JSON.stringify({ source: state.onboardingEngine.source, stdin: state.onboardingEngine.stdin || '' })
       });
       const execResult = await res.json();
       state.onboardingEngine.evaluateStep(execResult);
@@ -1008,6 +1166,46 @@ app.addEventListener('click', async e => {
       render();
     } catch (err) {
       state.onboardingEngine.stepFeedback = { passed: false, message: `Runner error: ${err.message}` };
+      render();
+    }
+    return;
+  }
+
+  if (action === 'run-input-lab') {
+    state.inputLab.executing = true;
+    render();
+    try {
+      const snippet = INPUT_LAB_SNIPPETS[state.inputLab.snippetKey] || INPUT_LAB_SNIPPETS.doubler;
+      const res = await fetch('/api/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: snippet.code,
+          stdin: state.inputLab.inputValue || ''
+        })
+      });
+      const execResult = await res.json();
+      state.inputLab.executing = false;
+      state.inputLab.output = execResult;
+      state.inputLab.history.push({
+        input: state.inputLab.inputValue,
+        output: (execResult.stdout || execResult.stderr || '').trim()
+      });
+      if (state.inputLab.history.length > 5) state.inputLab.history.shift();
+    } catch (err) {
+      state.inputLab.executing = false;
+      state.inputLab.output = { status: 'error', stderr: `Execution error: ${err.message}` };
+    }
+    render();
+    return;
+  }
+
+  if (action === 'input-lab-snippet') {
+    const key = el.dataset.snippetKey;
+    if (INPUT_LAB_SNIPPETS[key]) {
+      state.inputLab.snippetKey = key;
+      state.inputLab.inputValue = INPUT_LAB_SNIPPETS[key].defaultInput;
+      state.inputLab.output = null;
       render();
     }
     return;
@@ -1099,8 +1297,32 @@ app.addEventListener('click', async e => {
     return;
   }
 
+  if (action === 'debug-step') {
+    state.debugEngine.setStep(el.dataset.step);
+    render();
+    return;
+  }
+
+  if (action === 'debug-locate-line') {
+    state.debugEngine.selectLine(Number(el.dataset.line));
+    render();
+    return;
+  }
+
+  if (action === 'debug-explain-opt') {
+    state.debugEngine.selectExplainOption(Number(el.dataset.optIdx));
+    render();
+    return;
+  }
+
   if (action === 'debug-scaffold-opt') {
     state.debugEngine.selectScaffoldOption(Number(el.dataset.optIdx));
+    render();
+    return;
+  }
+
+  if (action === 'debug-hint-tier') {
+    state.debugEngine.unlockNextHint();
     render();
     return;
   }
@@ -1116,22 +1338,66 @@ app.addEventListener('click', async e => {
     btn.disabled = true;
     btn.textContent = '⏳ Compiling...';
     try {
-      const res = await fetch('/api/execute', {
+      const endpoint = '/api/run';
+      let res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: state.debugEngine.state.userSource, stdin: '' })
       });
+      if (!res.ok) {
+        // Fallback to /api/execute if /api/run is not available
+        res = await fetch('/api/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source: state.debugEngine.state.userSource, stdin: '' })
+        });
+      }
       const execResult = await res.json();
       const passed = state.debugEngine.evaluateFix(execResult);
+      if (passed && state.debugEngine.isWorkspaceActive) {
+        state.source = state.debugEngine.state.userSource;
+      }
       if (passed && state.profile.beginner) {
         state.profile.beginner.debugsCompleted = (state.profile.beginner.debugsCompleted || 0) + 1;
       }
       save();
       render();
+      if (state.mode === 'course') addLessonNavigation();
     } catch (err) {
       state.debugEngine.evaluateFix({ status: 'execution_error', error: err.message });
       render();
     }
+    return;
+  }
+
+  if (action === 'start-workspace-debug') {
+    const curEx = state.mode === 'course' ? currentExercise() : state.currentIndependentExercise;
+    const lastDiag = state.feedback?.rawError || state.assessmentFeedback?.rawError || state.feedback?.message || '';
+    const classified = state.feedback?.classifiedError || state.assessmentFeedback?.classifiedError || null;
+    const testRes = state.assessmentFeedback?.testResults?.find(t => !t.passed);
+    const expected = testRes?.expectedOutput || '';
+    const actual = testRes?.actualOutput || '';
+
+    state.debugEngine.initFromWorkspaceError({
+      source: state.source,
+      diagnostic: lastDiag,
+      classifiedError: classified,
+      testResult: testRes,
+      expectedOutput: expected,
+      actualOutput: actual,
+      exerciseTitle: curEx?.title || current()?.title || 'Current Code'
+    });
+    state.activeWorkspaceDebug = true;
+    render();
+    if (state.mode === 'course') addLessonNavigation();
+    return;
+  }
+
+  if (action === 'workspace-debug-close') {
+    state.debugEngine.exitWorkspaceDebug();
+    state.activeWorkspaceDebug = false;
+    render();
+    if (state.mode === 'course') addLessonNavigation();
     return;
   }
 
@@ -1156,8 +1422,12 @@ app.addEventListener('click', async e => {
     if (state.profile.beginner) {
       state.profile.beginner.decompositionsCompleted = (state.profile.beginner.decompositionsCompleted || 0) + 1;
     }
+    state.activeDecompositionPlan = state.decompositionEngine.getStructuredPlan();
     state.source = state.decompositionEngine.userFields.code;
     state.mode = 'course';
+    state.exercise = 'medium';
+    state.scaffoldStage = 'guided';
+    state.activeWorkspaceDebug = false;
     save();
     render();
     addLessonNavigation();
@@ -1172,14 +1442,24 @@ app.addEventListener('click', async e => {
 
   if (action === 'exercise') {
     state.exercise = el.dataset.level;
+    state.scaffoldStage = el.dataset.level === 'mini' ? 'faded' : el.dataset.level === 'medium' ? 'guided' : 'independent';
     state.feedback = null;
     state.assessmentFeedback = null;
     state.hintIndex = 0;
     state.showSolution = false;
+    state.activeWorkspaceDebug = false;
     const ex = currentExercise();
+    if (state.scaffoldStage === 'guided') {
+      if (!state.activeDecompositionPlan) {
+        state.activeDecompositionPlan = DecompositionEngine.createPlanFromExercise(ex);
+      }
+    } else {
+      state.activeDecompositionPlan = null;
+    }
     if (ex && ex.starterCode) {
       state.source = ex.starterCode;
     }
+    checkAndAutoOpenStdin();
     render();
     addLessonNavigation();
     return;
@@ -1203,6 +1483,9 @@ app.addEventListener('click', async e => {
 
   if (action === 'reveal-solution') {
     const curEx = state.mode === 'course' ? currentExercise() : state.currentIndependentExercise;
+    if (state.scaffoldStage === 'independent' || curEx?.isIndependent || (state.mode === 'course' && state.exercise === 'hard') || state.mode === 'benchmark' || state.mode === 'mastery') {
+      return;
+    }
     state.showSolution = true;
     eventBus.emit(LEARNING_EVENTS.SOLUTION_REVEALED, {
       exerciseId: curEx?.id
@@ -1223,6 +1506,7 @@ app.addEventListener('click', async e => {
       state.assessmentFeedback = null;
       state.hintIndex = 0;
       state.showSolution = false;
+      checkAndAutoOpenStdin();
       render();
       addLessonNavigation();
     }
@@ -1244,6 +1528,7 @@ app.addEventListener('click', async e => {
     state.assessmentFeedback = null;
     state.hintIndex = 0;
     state.showSolution = false;
+    checkAndAutoOpenStdin();
     render();
     addLessonNavigation();
     if (state.showVisualizer && visualizer) {
@@ -1260,6 +1545,7 @@ app.addEventListener('click', async e => {
     state.assessmentFeedback = null;
     state.hintIndex = 0;
     state.showSolution = false;
+    checkAndAutoOpenStdin();
     render();
     addLessonNavigation();
     if (state.showVisualizer && visualizer) {
@@ -1390,6 +1676,18 @@ app.addEventListener('click', async e => {
           totalLessonsCompleted: state.profile.completed.length,
           conceptMastery: state.profile.conceptMastery
         });
+
+        if (state.profile.beginner) {
+          const lId = state.mode === 'course' ? (current()?.id || state.lessonId) : state.lessonId;
+          if (lId) {
+            if (!state.profile.beginner.scaffoldHistory[lId] || typeof state.profile.beginner.scaffoldHistory[lId] !== 'object') {
+              const oldVal = state.profile.beginner.scaffoldHistory[lId];
+              state.profile.beginner.scaffoldHistory[lId] = typeof oldVal === 'string' ? { current: oldVal } : {};
+            }
+            const stg = state.scaffoldStage || (state.mode === 'benchmark' ? 'transfer' : state.exercise === 'mini' ? 'faded' : state.exercise === 'medium' ? 'guided' : 'independent');
+            state.profile.beginner.scaffoldHistory[lId][stg + '_completed'] = true;
+          }
+        }
         save();
       } else {
         if (assessmentResult.status === 'compile_error') {
@@ -1447,6 +1745,7 @@ const starterTemplate = `#include <iostream>\nusing namespace std;\n\nint main()
 
 if (typeof document !== 'undefined' && app) {
   applyTheme(state.theme);
+  checkAndAutoOpenStdin();
   render();
   addLessonNavigation();
   initPikachuCompanion(document.body, companionController);

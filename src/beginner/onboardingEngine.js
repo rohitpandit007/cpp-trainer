@@ -15,6 +15,7 @@ export class OnboardingEngine {
     this.completed = Boolean(options.completed);
     this.skipped = Boolean(options.skipped);
     this.source = this.steps[this.currentStep]?.starterCode || '';
+    this.stdin = this.steps[this.currentStep]?.starterStdin || '';
     this.lastExecResult = null;
     this.lastCompilerError = null;
     this.stepFeedback = null;
@@ -31,6 +32,7 @@ export class OnboardingEngine {
       if (data.starterCode) {
         this.source = data.starterCode;
       }
+      this.stdin = data.starterStdin || '';
       this.stepFeedback = null;
       this.lastExecResult = null;
     }
@@ -38,6 +40,10 @@ export class OnboardingEngine {
 
   updateSource(code) {
     this.source = code;
+  }
+
+  updateStdin(val) {
+    this.stdin = val;
   }
 
   skipOnboarding() {
@@ -161,6 +167,7 @@ export class OnboardingEngine {
       if (nextData.starterCode) {
         this.source = nextData.starterCode;
       }
+      this.stdin = nextData.starterStdin || '';
       return { completed: false, nextStep: this.currentStep };
     } else {
       this.completed = true;
@@ -239,6 +246,12 @@ export class OnboardingEngine {
                 <span class="ob-compiler-tag">${data.requiresRun ? 'Real C++ Compiler Active' : 'C++ Code Editor'}</span>
               </div>
               <textarea class="ob-editor-textarea" data-onboarding-source spellcheck="false">${this.source}</textarea>
+              ${(data.hasStdin || data.starterStdin !== undefined || (typeof this.source === 'string' && /\bcin\b/.test(this.source))) ? `
+                <div class="ob-stdin-container">
+                  <div class="ob-stdin-label">Standard Input (stdin for cin):</div>
+                  <textarea class="ob-stdin-textarea" data-onboarding-stdin placeholder="Values to pass to cin...">${this.stdin}</textarea>
+                </div>
+              ` : ''}
               <div class="ob-editor-actions">
                 ${data.requiresRun ? `
                   <button class="ob-run-btn" data-action="onboarding-run">

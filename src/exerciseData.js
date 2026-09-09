@@ -154,7 +154,7 @@ export const exerciseCatalog = {
     constraints: ['age must be an integer set to 18.'],
     inputFormat: 'No input.',
     outputFormat: 'Age: 18',
-    starterCode: `#include <iostream>\nusing namespace std;\n\nint main() {\n  int age = 18;\n  // Print Age: 18\n  cout << "Age: " << age;\n  return 0;\n}`,
+    starterCode: `#include <iostream>\nusing namespace std;\n\nint main() {\n  int age = 18;\n  // TODO: Print "Age: " followed by age and endl\n  cout << "Age: " << /* fill in variable */ << endl;\n  return 0;\n}`,
     testCases: [
       {
         id: 'test-1',
@@ -162,6 +162,13 @@ export const exerciseCatalog = {
         input: '',
         expectedOutput: 'Age: 18',
         isHidden: false
+      },
+      {
+        id: 'test-2',
+        description: 'Hidden test: check formatted age output',
+        input: '',
+        expectedOutput: 'Age: 18',
+        isHidden: true
       }
     ],
     expectedBehavior: 'Prints Age: 18 using an int variable.',
@@ -468,7 +475,7 @@ export const exerciseCatalog = {
     constraints: ['n is between -1000 and 1000.'],
     inputFormat: 'A single integer n.',
     outputFormat: 'The value n * n.',
-    starterCode: `#include <iostream>\nusing namespace std;\n\n// TODO: Implement square function\nint square(int n) {\n  return n * n;\n}\n\nint main() {\n  int n;\n  if (cin >> n) {\n    cout << square(n);\n  }\n  return 0;\n}`,
+    starterCode: `#include <iostream>\nusing namespace std;\n\n// TODO: Complete the square function to return n squared\nint square(int n) {\n  return /* complete calculation */;\n}\n\nint main() {\n  int n;\n  if (cin >> n) {\n    cout << square(n);\n  }\n  return 0;\n}`,
     testCases: [
       {
         id: 'test-1',
@@ -1119,7 +1126,7 @@ export const exerciseCatalog = {
     constraints: ['Student must publicly inherit from Person.'],
     inputFormat: 'No input.',
     outputFormat: 'Hello from Person\nStudying C++',
-    starterCode: `#include <iostream>\nusing namespace std;\n\nclass Person {\npublic:\n  void speak() { cout << "Hello from Person" << endl; }\n};\n\nclass Student : public Person {\npublic:\n  void study() { cout << "Studying C++" << endl; }\n};\n\nint main() {\n  Student s;\n  s.speak();\n  s.study();\n  return 0;\n}`,
+    starterCode: `#include <iostream>\nusing namespace std;\n\nclass Person {\npublic:\n  void speak() { cout << "Hello from Person" << endl; }\n};\n\n// TODO: Publicly derive Student from Person and implement void study()\nclass Student : public Person {\npublic:\n  // TODO: Add study() method that prints "Studying C++"\n  void study() {\n    cout << /* fill in message */ << endl;\n  }\n};\n\nint main() {\n  Student s;\n  s.speak();\n  s.study();\n  return 0;\n}`,
     testCases: [
       {
         id: 'test-1',
@@ -1505,184 +1512,219 @@ export const exerciseCatalog = {
   },
 
   // ==========================================
-  // LESSON 18: Overload << and >>
+  // LESSON 3: Conditionals & Boolean Logic
   // ==========================================
-  'streams-mini': {
-    id: 'streams-mini',
-    title: 'Point Stream Output (operator<<)',
-    syllabusModule: 'Polymorphism',
-    concepts: ['stream-operators', 'operator-overloading', 'classes', 'cout'],
+  'conditionals-mini': {
+    id: 'conditionals-mini',
+    title: 'Pass/Fail Threshold Evaluator',
+    syllabusModule: 'Start Writing C++',
+    concepts: ['branching', 'bool', 'variables', 'cout', 'cin'],
     difficulty: 'easy',
-    level: 2,
-    problemStatement: 'Overload the stream insertion operator operator<< for a class Point representing a 2D coordinate (x, y). The operator should format the output as (x, y). In main(), read two integers a and b, construct Point p(a, b), and print "Point: " followed by p.',
-    constraints: ['Must overload operator<<(ostream&, const Point&) as a non-member or friend function.'],
-    inputFormat: 'Two space-separated integers a b.',
-    outputFormat: 'Point: (a, b)',
-    starterCode: `#include <iostream>\nusing namespace std;\n\nclass Point {\n  int x, y;\npublic:\n  Point(int x_ = 0, int y_ = 0) : x(x_), y(y_) {}\n  // TODO: Overload operator<< as a friend function\n};\n\nint main() {\n  int a, b;\n  if (cin >> a >> b) {\n    Point p(a, b);\n    cout << "Point: " << p << endl;\n  }\n  return 0;\n}`,
+    level: 1,
+    problemStatement: 'Read an integer score from standard input. If the score is 50 or greater, print "Pass". Otherwise, print "Fail". End output with a newline.',
+    constraints: ['Score is an integer between 0 and 100 inclusive.'],
+    inputFormat: 'A single integer score.',
+    outputFormat: 'Pass or Fail followed by a newline.',
+    starterCode: `#include <iostream>\nusing namespace std;\n\nint main() {\n  int score;\n  if (cin >> score) {\n    // TODO: Print "Pass" if score >= 50, otherwise "Fail"\n  }\n  return 0;\n}`,
     testCases: [
       {
         id: 'test-1',
-        description: 'Visible sample: (3, 7)',
-        input: '3 7',
-        expectedOutput: 'Point: (3, 7)',
+        description: 'Visible sample: Passing score 75',
+        input: '75',
+        expectedOutput: 'Pass',
         isHidden: false
       },
       {
         id: 'test-2',
-        description: 'Visible sample: origin (0, 0)',
-        input: '0 0',
-        expectedOutput: 'Point: (0, 0)',
+        description: 'Visible sample: Failing score 49',
+        input: '49',
+        expectedOutput: 'Fail',
         isHidden: false
       },
       {
         id: 'test-3',
-        description: 'Hidden test: negative coordinates (-5, 12)',
-        input: '-5 12',
-        expectedOutput: 'Point: (-5, 12)',
-        isHidden: true
+        description: 'Visible sample: Exact boundary score 50',
+        input: '50',
+        expectedOutput: 'Pass',
+        isHidden: false
       },
       {
         id: 'test-4',
-        description: 'Hidden test: mixed large coordinates',
-        input: '100 -200',
-        expectedOutput: 'Point: (100, -200)',
+        description: 'Hidden test: Zero score',
+        input: '0',
+        expectedOutput: 'Fail',
+        isHidden: true
+      },
+      {
+        id: 'test-5',
+        description: 'Hidden test: Maximum score 100',
+        input: '100',
+        expectedOutput: 'Pass',
         isHidden: true
       }
     ],
     conceptChecks: [
       {
-        id: 'has-stream-insertion',
-        description: 'Must overload operator<<',
-        pattern: 'operator\\s*<<',
-        message: 'You must overload operator<< for class Point.'
+        id: 'has-if-condition',
+        description: 'Must use if statement for decision making',
+        pattern: '\\bif\\s*\\(',
+        message: 'You must use an if statement to evaluate the score condition.'
       }
     ],
-    expectedBehavior: 'Overloads stream insertion operator to print Point objects in (x, y) format.',
+    expectedBehavior: 'Evaluates score >= 50 and outputs Pass or Fail appropriately.',
     hints: [
-      'Stream insertion operator<< takes ostream& as its first parameter and const Point& as its second.',
-      'Declare it as friend ostream& operator<<(ostream& os, const Point& p) inside class Point.',
-      'Output "(" << p.x << ", " << p.y << ")" to os and return os.'
+      'Use if (score >= 50) { cout << "Pass" << endl; } else { cout << "Fail" << endl; }',
+      'Remember to check >= 50 so that an exact score of 50 passes.',
+      'Always append endl or a newline character to complete your output line.'
     ],
-    solution: `#include <iostream>\nusing namespace std;\n\nclass Point {\n  int x, y;\npublic:\n  Point(int x_ = 0, int y_ = 0) : x(x_), y(y_) {}\n  friend ostream& operator<<(ostream& os, const Point& p) {\n    os << "(" << p.x << ", " << p.y << ")";\n    return os;\n  }\n};\n\nint main() {\n  int a, b;\n  if (cin >> a >> b) {\n    Point p(a, b);\n    cout << "Point: " << p << endl;\n  }\n  return 0;\n}`,
-    prerequisiteConcepts: ['operator-overloading', 'classes', 'cout'],
+    solution: `#include <iostream>\nusing namespace std;\n\nint main() {\n  int score;\n  if (cin >> score) {\n    if (score >= 50) {\n      cout << "Pass" << endl;\n    } else {\n      cout << "Fail" << endl;\n    }\n  }\n  return 0;\n}`,
+    prerequisiteConcepts: ['variables', 'cout', 'cin'],
     isIndependent: false,
     isMultiConcept: false
   },
 
-  'streams-medium': {
-    id: 'streams-medium',
-    title: 'Chained Fraction Stream Extraction & Insertion',
-    syllabusModule: 'Polymorphism',
-    concepts: ['stream-operators', 'operator-overloading', 'classes', 'cin', 'cout'],
+  'conditionals-medium': {
+    id: 'conditionals-medium',
+    title: 'Multi-Tier Score Classifier',
+    syllabusModule: 'Start Writing C++',
+    concepts: ['branching', 'bool', 'arithmetic', 'variables'],
     difficulty: 'medium',
-    level: 3,
-    problemStatement: 'Implement a Fraction class with numerator and denominator. Overload: (1) istream& operator>>(istream& is, Fraction& f) to read num and den. (2) ostream& operator<<(ostream& os, const Fraction& f) to write num/den. Both operators must return stream references to support chained stream operations (e.g. cin >> f1 >> f2; cout << f1 << " + " << f2;). In main(), read two fractions from input and print them in the format "<f1> + <f2>".',
-    constraints: ['Both operators must return stream references to support chaining.'],
-    inputFormat: 'Four integers: n1 d1 n2 d2',
-    outputFormat: 'n1/d1 + n2/d2',
-    starterCode: `#include <iostream>\nusing namespace std;\n\nclass Fraction {\n  int num, den;\npublic:\n  Fraction(int n = 0, int d = 1) : num(n), den(d) {}\n  // TODO: Overload operator>> and operator<<\n};\n\nint main() {\n  Fraction f1, f2;\n  if (cin >> f1 >> f2) {\n    cout << f1 << " + " << f2 << endl;\n  }\n  return 0;\n}`,
+    level: 2,
+    problemStatement: 'Read an integer mark from standard input. If the mark is 90 or above, print "Grade A". If between 75 and 89 (inclusive), print "Grade B". If between 50 and 74 (inclusive), print "Grade C". If below 50, print "Retake". End with a newline.',
+    constraints: ['Mark is an integer between 0 and 100 inclusive.'],
+    inputFormat: 'A single integer mark.',
+    outputFormat: 'Grade classification string followed by a newline.',
+    starterCode: `#include <iostream>\nusing namespace std;\n\nint main() {\n  int mark;\n  if (cin >> mark) {\n    // TODO: Implement multi-branch grading logic using if, else if, and else\n  }\n  return 0;\n}`,
     testCases: [
       {
         id: 'test-1',
-        description: 'Visible sample: 1/2 and 3/4',
-        input: '1 2 3 4',
-        expectedOutput: '1/2 + 3/4',
+        description: 'Visible sample: Top mark 95 (Grade A)',
+        input: '95',
+        expectedOutput: 'Grade A',
         isHidden: false
       },
       {
         id: 'test-2',
-        description: 'Visible sample: whole number and fraction (5/1 + 2/3)',
-        input: '5 1 2 3',
-        expectedOutput: '5/1 + 2/3',
+        description: 'Visible sample: Upper mark 82 (Grade B)',
+        input: '82',
+        expectedOutput: 'Grade B',
         isHidden: false
       },
       {
         id: 'test-3',
-        description: 'Hidden test: identical denominators (7/8 + 1/8)',
-        input: '7 8 1 8',
-        expectedOutput: '7/8 + 1/8',
-        isHidden: true
+        description: 'Visible sample: Average mark 60 (Grade C)',
+        input: '60',
+        expectedOutput: 'Grade C',
+        isHidden: false
       },
       {
         id: 'test-4',
-        description: 'Hidden test: negative numerator (-3/5 + 4/9)',
-        input: '-3 5 4 9',
-        expectedOutput: '-3/5 + 4/9',
+        description: 'Visible sample: Low mark 35 (Retake)',
+        input: '35',
+        expectedOutput: 'Retake',
+        isHidden: false
+      },
+      {
+        id: 'test-5',
+        description: 'Hidden test: Boundary 90 (Grade A)',
+        input: '90',
+        expectedOutput: 'Grade A',
+        isHidden: true
+      },
+      {
+        id: 'test-6',
+        description: 'Hidden test: Boundary 75 (Grade B)',
+        input: '75',
+        expectedOutput: 'Grade B',
+        isHidden: true
+      },
+      {
+        id: 'test-7',
+        description: 'Hidden test: Boundary 50 (Grade C)',
+        input: '50',
+        expectedOutput: 'Grade C',
         isHidden: true
       }
     ],
     conceptChecks: [
       {
-        id: 'has-stream-extraction',
-        description: 'Must overload operator>>',
-        pattern: 'operator\\s*>>',
-        message: 'You must overload operator>> for Fraction extraction.'
+        id: 'has-else-if',
+        description: 'Must use chained else if statements',
+        pattern: '\\belse\\s+if\\s*\\(',
+        message: 'You must use else if branches to classify multi-tier boundaries.'
       }
     ],
-    expectedBehavior: 'Overloads chained >> and << stream operators for Fraction input and output.',
+    expectedBehavior: 'Classifies marks into Grade A, Grade B, Grade C, or Retake using chained branches.',
     hints: [
-      'Both stream extraction >> and insertion << must return their stream reference parameter (is or os).',
-      'Declare friend istream& operator>>(istream& is, Fraction& f) and friend ostream& operator<<(ostream& os, const Fraction& f).',
-      'In >>, read is >> f.num >> f.den; and in <<, send os << f.num << "/" << f.den; returning the stream reference.'
+      'Order your conditions from highest to lowest: if (mark >= 90) ... else if (mark >= 75) ... else if (mark >= 50) ... else ...',
+      'Because earlier conditions catch higher values, you only need to check the lower bound at each step.',
+      'Ensure the string casing exactly matches "Grade A", "Grade B", "Grade C", and "Retake".'
     ],
-    solution: `#include <iostream>\nusing namespace std;\n\nclass Fraction {\n  int num, den;\npublic:\n  Fraction(int n = 0, int d = 1) : num(n), den(d) {}\n  friend istream& operator>>(istream& is, Fraction& f) {\n    is >> f.num >> f.den;\n    return is;\n  }\n  friend ostream& operator<<(ostream& os, const Fraction& f) {\n    os << f.num << "/" << f.den;\n    return os;\n  }\n};\n\nint main() {\n  Fraction f1, f2;\n  if (cin >> f1 >> f2) {\n    cout << f1 << " + " << f2 << endl;\n  }\n  return 0;\n}`,
-    prerequisiteConcepts: ['stream-operators', 'classes'],
+    solution: `#include <iostream>\nusing namespace std;\n\nint main() {\n  int mark;\n  if (cin >> mark) {\n    if (mark >= 90) {\n      cout << "Grade A" << endl;\n    } else if (mark >= 75) {\n      cout << "Grade B" << endl;\n    } else if (mark >= 50) {\n      cout << "Grade C" << endl;\n    } else {\n      cout << "Retake" << endl;\n    }\n  }\n  return 0;\n}`,
+    prerequisiteConcepts: ['branching', 'bool', 'variables'],
     isIndependent: false,
-    isMultiConcept: true
+    isMultiConcept: false
   },
 
-  'streams-hard': {
-    id: 'streams-hard',
-    title: 'Vector2D Stream Pipeline & Addition',
-    syllabusModule: 'Polymorphism',
-    concepts: ['stream-operators', 'operator-overloading', 'classes', 'binary-operators'],
+  'conditionals-hard': {
+    id: 'conditionals-hard',
+    title: 'Bounded Triangle Inequality Validator',
+    syllabusModule: 'Start Writing C++',
+    concepts: ['branching', 'bool', 'arithmetic', 'variables'],
     difficulty: 'hard',
-    level: 5,
-    problemStatement: 'Design a complete Vector2D class with int x, y. Overload: (1) operator>> to read x and y. (2) operator<< to format output as "<x, y>". (3) operator+ to return component-wise sum of two vectors. In main(), read an integer N (the number of vector pairs). For each pair, read two vectors v1 and v2, compute v3 = v1 + v2, and print "<v1> + <v2> = <v3>" on a new line.',
-    constraints: ['All vector coordinates are integers.'],
-    inputFormat: 'N followed by N sets of 4 integers (x1 y1 x2 y2).',
-    outputFormat: 'N lines formatted as <x1, y1> + <x2, y2> = <x3, y3>',
-    starterCode: `#include <iostream>\nusing namespace std;\n\n// Write complete Vector2D class and vector stream addition program\n\nint main() {\n  return 0;\n}`,
+    level: 3,
+    problemStatement: 'Read three positive integers representing side lengths a, b, and c. Test if they can form a valid triangle using the triangle inequality theorem: the sum of any two sides must be strictly greater than the third side (a + b > c, a + c > b, and b + c > a). If valid, print "Valid Triangle". Otherwise, print "Invalid Triangle". End with a newline.',
+    constraints: ['All side lengths are positive integers.'],
+    inputFormat: 'Three space-separated integers: a b c.',
+    outputFormat: '"Valid Triangle" or "Invalid Triangle" followed by a newline.',
+    starterCode: `#include <iostream>\nusing namespace std;\n\nint main() {\n  int a, b, c;\n  if (cin >> a >> b >> c) {\n    // Validate triangle inequality\n  }\n  return 0;\n}`,
     testCases: [
       {
         id: 'test-1',
-        description: 'Visible sample: 2 pairs of vectors',
-        input: '2\n1 2 3 4\n5 -1 -2 3',
-        expectedOutput: '<1, 2> + <3, 4> = <4, 6>\n<5, -1> + <-2, 3> = <3, 2>',
+        description: 'Visible sample: 3-4-5 triangle (Valid)',
+        input: '3 4 5',
+        expectedOutput: 'Valid Triangle',
         isHidden: false
       },
       {
         id: 'test-2',
-        description: 'Visible sample: zero vector addition',
-        input: '1\n0 0 0 0',
-        expectedOutput: '<0, 0> + <0, 0> = <0, 0>',
+        description: 'Visible sample: Degenerate 1-2-3 line (Invalid)',
+        input: '1 2 3',
+        expectedOutput: 'Invalid Triangle',
         isHidden: false
       },
       {
         id: 'test-3',
-        description: 'Hidden test: opposing vectors canceling out',
-        input: '2\n10 20 -10 -20\n7 8 1 2',
-        expectedOutput: '<10, 20> + <-10, -20> = <0, 0>\n<7, 8> + <1, 2> = <8, 10>',
-        isHidden: true
+        description: 'Visible sample: Equilateral 5-5-5 (Valid)',
+        input: '5 5 5',
+        expectedOutput: 'Valid Triangle',
+        isHidden: false
       },
       {
         id: 'test-4',
-        description: 'Hidden test: all negative vector coordinates',
-        input: '1\n-5 -10 -15 -20',
-        expectedOutput: '<-5, -10> + <-15, -20> = <-20, -30>',
+        description: 'Hidden test: Impossible long side 10 2 2 (Invalid)',
+        input: '10 2 2',
+        expectedOutput: 'Invalid Triangle',
+        isHidden: true
+      },
+      {
+        id: 'test-5',
+        description: 'Hidden test: Valid scalene 7 10 5 (Valid)',
+        input: '7 10 5',
+        expectedOutput: 'Valid Triangle',
         isHidden: true
       }
     ],
-    expectedBehavior: 'Parses, adds, and prints Vector2D pairs using overloaded >>, +, and <<.',
+    expectedBehavior: 'Combines multiple logical conditions with && to validate the triangle inequality.',
     hints: [
-      'Overload operator>> to read x and y, operator<< to display <x, y>, and operator+ to add coordinates.',
-      'Inside main, loop N times reading Vector2D v1, v2 using cin >> v1 >> v2.',
-      'Output v1 << " + " << v2 << " = " << (v1 + v2) << endl; directly using the overloaded stream insertion operator.'
+      'A triangle is valid if and only if (a + b > c) && (a + c > b) && (b + c > a).',
+      'Use logical AND (&&) to connect the three inequalities inside a single if statement.',
+      'Print "Valid Triangle" if all three conditions are satisfied; otherwise print "Invalid Triangle".'
     ],
-    solution: `#include <iostream>\nusing namespace std;\n\nclass Vector2D {\npublic:\n  int x, y;\n  Vector2D(int x_ = 0, int y_ = 0) : x(x_), y(y_) {}\n  Vector2D operator+(const Vector2D& o) const {\n    return Vector2D(x + o.x, y + o.y);\n  }\n  friend istream& operator>>(istream& is, Vector2D& v) {\n    is >> v.x >> v.y;\n    return is;\n  }\n  friend ostream& operator<<(ostream& os, const Vector2D& v) {\n    os << "<" << v.x << ", " << v.y << ">";\n    return os;\n  }\n};\n\nint main() {\n  int n;\n  if (cin >> n) {\n    for (int i = 0; i < n; i++) {\n      Vector2D v1, v2;\n      if (cin >> v1 >> v2) {\n        Vector2D v3 = v1 + v2;\n        cout << v1 << " + " << v2 << " = " << v3 << endl;\n      }\n    }\n  }\n  return 0;\n}`,
-    prerequisiteConcepts: ['stream-operators', 'operator-overloading', 'classes'],
+    solution: `#include <iostream>\nusing namespace std;\n\nint main() {\n  int a, b, c;\n  if (cin >> a >> b >> c) {\n    if (a + b > c && a + c > b && b + c > a) {\n      cout << "Valid Triangle" << endl;\n    } else {\n      cout << "Invalid Triangle" << endl;\n    }\n  }\n  return 0;\n}`,
+    prerequisiteConcepts: ['branching', 'bool', 'variables', 'arithmetic'],
     isIndependent: true,
-    isMultiConcept: true
+    isMultiConcept: false
   },
 
   // ==========================================
@@ -3486,170 +3528,206 @@ export const exerciseCatalog = {
     isIndependent: true
   },
 
-  // Lesson 19: string-operators (MINI)
-  'string-operators-mini': {
-    id: 'string-operators-mini',
-    title: 'Concatenate Fixed Buffers with operator+',
-    concepts: ['string-operators', 'operator-overloading', 'classes'],
+  // ==========================================
+  // LESSON 4: Loops & Iteration
+  // ==========================================
+  'loops-mini': {
+    id: 'loops-mini',
+    title: 'Sum Accumulator via while Loop',
+    syllabusModule: 'Start Writing C++',
+    concepts: ['loops', 'variables', 'arithmetic', 'cin', 'cout'],
     difficulty: 'easy',
-    level: 2,
-    problemStatement: 'Complete a lightweight string wrapper class CustomString that stores text in a fixed character buffer (up to 64 chars) without using <string>. Overload member operator+(const CustomString& other) const to concatenate both strings into a new CustomString. Output: "Result: <text> (Length: <len>)".',
-    constraints: [
-      'Must implement operator+ returning a new CustomString.',
-      'Buffer size is at most 64 characters.'
-    ],
-    inputFormat: 'Two single-word strings on standard input: <word1> <word2>',
-    outputFormat: 'Result: <concatenated> (Length: <len>)',
-    starterCode: `#include <iostream>\nusing namespace std;\n\nclass CustomString {\nprivate:\n  char buf[64];\n  int len;\npublic:\n  CustomString() : len(0) { buf[0] = '\\0'; }\n  CustomString(const char* s);\n  // TODO: Overload operator+(const CustomString& other) const\n  void display() const;\n};\n\n// TODO: Implement constructor, operator+, and display\n\nint main() {\n  char w1[32], w2[32];\n  if (cin >> w1 >> w2) {\n    CustomString s1(w1), s2(w2);\n    CustomString s3 = s1 + s2;\n    s3.display();\n  }\n  return 0;\n}`,
+    level: 1,
+    problemStatement: 'Read a positive integer N from standard input. Using a while loop, calculate the sum of all integers from 1 to N inclusive (1 + 2 + ... + N). Output the sum followed by a newline.',
+    constraints: ['N is a positive integer between 1 and 1000 inclusive.'],
+    inputFormat: 'A single positive integer N.',
+    outputFormat: 'The calculated sum followed by a newline.',
+    starterCode: `#include <iostream>\nusing namespace std;\n\nint main() {\n  int n;\n  if (cin >> n && n > 0) {\n    // TODO: Use a while loop to calculate sum from 1 to n\n  }\n  return 0;\n}`,
     testCases: [
       {
         id: 'test-1',
-        description: 'Concatenate Hello and World',
-        input: 'Hello World',
-        expectedOutput: 'Result: HelloWorld (Length: 10)',
+        description: 'Visible sample: Sum 1..5 = 15',
+        input: '5',
+        expectedOutput: '15',
         isHidden: false
       },
       {
         id: 'test-2',
-        description: 'Concatenate Code and Bloom',
-        input: 'Code Bloom',
-        expectedOutput: 'Result: CodeBloom (Length: 9)',
+        description: 'Visible sample: Single element 1..1 = 1',
+        input: '1',
+        expectedOutput: '1',
         isHidden: false
       },
       {
         id: 'test-3',
-        description: 'Hidden test: Short symbols',
-        input: 'C ++',
-        expectedOutput: 'Result: C++ (Length: 3)',
-        isHidden: true
+        description: 'Visible sample: Sum 1..10 = 55',
+        input: '10',
+        expectedOutput: '55',
+        isHidden: false
       },
       {
         id: 'test-4',
-        description: 'Hidden test: Longer words',
-        input: 'Super Fast',
-        expectedOutput: 'Result: SuperFast (Length: 9)',
+        description: 'Hidden test: Sum 1..100 = 5050',
+        input: '100',
+        expectedOutput: '5050',
+        isHidden: true
+      },
+      {
+        id: 'test-5',
+        description: 'Hidden test: Sum 1..20 = 210',
+        input: '20',
+        expectedOutput: '210',
         isHidden: true
       }
     ],
-    expectedBehavior: 'Overloads operator+ to join custom character buffers into a new instance.',
-    hints: [
-      'In CustomString(const char* s), copy characters into buf and count len until null terminator.',
-      'In operator+(const CustomString& other) const, create a result object, copy this->buf, then append other.buf.',
-      'Always append a null terminator \'\\0\' at the end of the combined buffer.'
+    conceptChecks: [
+      {
+        id: 'has-while-loop',
+        description: 'Must use a while loop for iteration',
+        pattern: '\\bwhile\\s*\\(',
+        message: 'You must use a while loop to accumulate the sum.'
+      }
     ],
-    solution: `#include <iostream>\nusing namespace std;\n\nclass CustomString {\nprivate:\n  char buf[64];\n  int len;\npublic:\n  CustomString() : len(0) { buf[0] = '\\0'; }\n  CustomString(const char* s) : len(0) {\n    while (s[len] != '\\0' && len < 63) {\n      buf[len] = s[len];\n      len++;\n    }\n    buf[len] = '\\0';\n  }\n  CustomString operator+(const CustomString& other) const {\n    CustomString res;\n    for (int i = 0; i < len; i++) {\n      res.buf[res.len++] = buf[i];\n    }\n    for (int i = 0; i < other.len; i++) {\n      res.buf[res.len++] = other.buf[i];\n    }\n    res.buf[res.len] = '\\0';\n    return res;\n  }\n  void display() const {\n    cout << "Result: " << buf << " (Length: " << len << ")";\n  }\n};\n\nint main() {\n  char w1[32], w2[32];\n  if (cin >> w1 >> w2) {\n    CustomString s1(w1), s2(w2);\n    CustomString s3 = s1 + s2;\n    s3.display();\n  }\n  return 0;\n}`,
-    prerequisiteConcepts: ['string-operators', 'operator-overloading', 'classes']
+    expectedBehavior: 'Uses a while loop to accumulate integers from 1 up to N.',
+    hints: [
+      'Initialize int sum = 0; and int i = 1;',
+      'Loop while (i <= n), add i to sum, and increment i with i++.',
+      'When the loop completes, print sum followed by endl.'
+    ],
+    solution: `#include <iostream>\nusing namespace std;\n\nint main() {\n  int n;\n  if (cin >> n && n > 0) {\n    int sum = 0;\n    int i = 1;\n    while (i <= n) {\n      sum += i;\n      i++;\n    }\n    cout << sum << endl;\n  }\n  return 0;\n}`,
+    prerequisiteConcepts: ['variables', 'arithmetic', 'cin', 'cout'],
+    isIndependent: false,
+    isMultiConcept: false
   },
 
-  // Lesson 19: string-operators (MEDIUM)
-  'string-operators-medium': {
-    id: 'string-operators-medium',
-    title: 'Lexicographical Comparison Operators for Custom Strings',
-    concepts: ['string-operators', 'operator-overloading', 'binary-operators', 'classes'],
+  'loops-medium': {
+    id: 'loops-medium',
+    title: 'Even Number Sequence Generator',
+    syllabusModule: 'Start Writing C++',
+    concepts: ['loops', 'branching', 'arithmetic', 'variables'],
     difficulty: 'medium',
-    level: 3,
-    problemStatement: 'Implement relational comparison operators operator== and operator< for CustomString. Two custom strings are equal if they have identical characters in identical order and equal length. s1 < s2 returns true if s1 is strictly lexicographically smaller than s2 (standard character ASCII order). Given two words, compare them and output: "Equal: <Yes/No>, S1 < S2: <Yes/No>".',
-    constraints: [
-      'Must overload both operator== and operator<.',
-      'Comparison must follow standard lexicographical ordering.'
-    ],
-    inputFormat: '<str1:string> <str2:string>',
-    outputFormat: 'Equal: <Yes/No>, S1 < S2: <Yes/No>',
-    starterCode: `#include <iostream>\nusing namespace std;\n\nclass CustomString {\nprivate:\n  char buf[64];\n  int len;\npublic:\n  CustomString(const char* s = "") : len(0) {\n    while (s[len] != '\\0' && len < 63) {\n      buf[len] = s[len];\n      len++;\n    }\n    buf[len] = '\\0';\n  }\n  // TODO: Overload operator==(const CustomString& other) const\n  // TODO: Overload operator<(const CustomString& other) const\n};\n\nint main() {\n  char w1[32], w2[32];\n  if (cin >> w1 >> w2) {\n    CustomString s1(w1), s2(w2);\n    cout << "Equal: " << ((s1 == s2) ? "Yes" : "No")\n         << ", S1 < S2: " << ((s1 < s2) ? "Yes" : "No");\n  }\n  return 0;\n}`,
+    level: 2,
+    problemStatement: 'Read a positive integer N from standard input. Using a for loop, print all even numbers from 2 up to N (inclusive), separated by single spaces with no trailing space, followed by a newline. If N is less than 2, output "None" followed by a newline.',
+    constraints: ['N is an integer between 0 and 1000 inclusive.'],
+    inputFormat: 'A single integer N.',
+    outputFormat: 'Space-separated even numbers, or "None", followed by a newline.',
+    starterCode: `#include <iostream>\nusing namespace std;\n\nint main() {\n  int n;\n  if (cin >> n) {\n    // TODO: Print even numbers 2..n separated by spaces, or "None"\n  }\n  return 0;\n}`,
     testCases: [
       {
         id: 'test-1',
-        description: 'Lexicographical ordering: apple < banana',
-        input: 'apple banana',
-        expectedOutput: 'Equal: No, S1 < S2: Yes',
+        description: 'Visible sample: Even numbers up to 10',
+        input: '10',
+        expectedOutput: '2 4 6 8 10',
         isHidden: false
       },
       {
         id: 'test-2',
-        description: 'Identical strings equality',
-        input: 'grape grape',
-        expectedOutput: 'Equal: Yes, S1 < S2: No',
+        description: 'Visible sample: Odd upper limit 5 (2 4)',
+        input: '5',
+        expectedOutput: '2 4',
         isHidden: false
       },
       {
         id: 'test-3',
-        description: 'Hidden test: Reversed ordering',
-        input: 'orange apple',
-        expectedOutput: 'Equal: No, S1 < S2: No',
-        isHidden: true
+        description: 'Visible sample: Boundary 1 (None)',
+        input: '1',
+        expectedOutput: 'None',
+        isHidden: false
       },
       {
         id: 'test-4',
-        description: 'Hidden test: Prefix string is smaller than longer string',
-        input: 'cat caterpillar',
-        expectedOutput: 'Equal: No, S1 < S2: Yes',
+        description: 'Hidden test: Exact first even number 2',
+        input: '2',
+        expectedOutput: '2',
+        isHidden: true
+      },
+      {
+        id: 'test-5',
+        description: 'Hidden test: Even sequence up to 14',
+        input: '15',
+        expectedOutput: '2 4 6 8 10 12 14',
         isHidden: true
       }
     ],
-    expectedBehavior: 'Overloads comparison operators to evaluate string equality and lexicographical precedence.',
-    hints: [
-      'In operator==, check len == other.len first, then compare characters in a loop.',
-      'In operator<, compare characters while i < len && i < other.len. If characters differ, return buf[i] < other.buf[i].',
-      'If common prefixes are equal, the shorter string is smaller: return len < other.len.'
+    conceptChecks: [
+      {
+        id: 'has-for-loop',
+        description: 'Must use a for loop',
+        pattern: '\\bfor\\s*\\(',
+        message: 'You must use a for loop to iterate over the sequence.'
+      }
     ],
-    solution: `#include <iostream>\nusing namespace std;\n\nclass CustomString {\nprivate:\n  char buf[64];\n  int len;\npublic:\n  CustomString(const char* s = "") : len(0) {\n    while (s[len] != '\\0' && len < 63) {\n      buf[len] = s[len];\n      len++;\n    }\n    buf[len] = '\\0';\n  }\n  bool operator==(const CustomString& other) const {\n    if (len != other.len) return false;\n    for (int i = 0; i < len; i++) {\n      if (buf[i] != other.buf[i]) return false;\n    }\n    return true;\n  }\n  bool operator<(const CustomString& other) const {\n    int minL = (len < other.len) ? len : other.len;\n    for (int i = 0; i < minL; i++) {\n      if (buf[i] != other.buf[i]) {\n        return buf[i] < other.buf[i];\n      }\n    }\n    return len < other.len;\n  }\n};\n\nint main() {\n  char w1[32], w2[32];\n  if (cin >> w1 >> w2) {\n    CustomString s1(w1), s2(w2);\n    cout << "Equal: " << ((s1 == s2) ? "Yes" : "No")\n         << ", S1 < S2: " << ((s1 < s2) ? "Yes" : "No");\n  }\n  return 0;\n}`,
-    prerequisiteConcepts: ['string-operators', 'operator-overloading', 'binary-operators', 'classes']
+    expectedBehavior: 'Iterates with a for loop by step 2 to print even numbers.',
+    hints: [
+      'If n < 2, print "None" and return.',
+      'Otherwise, loop with for (int i = 2; i <= n; i += 2). Format spacing carefully.',
+      'Use a condition like (i + 2 <= n ? " " : "") to ensure there is no trailing space at the end.'
+    ],
+    solution: `#include <iostream>\nusing namespace std;\n\nint main() {\n  int n;\n  if (cin >> n) {\n    if (n < 2) {\n      cout << "None" << endl;\n    } else {\n      for (int i = 2; i <= n; i += 2) {\n        cout << i << (i + 2 <= n ? " " : "");\n      }\n      cout << endl;\n    }\n  }\n  return 0;\n}`,
+    prerequisiteConcepts: ['loops', 'branching', 'variables'],
+    isIndependent: false,
+    isMultiConcept: false
   },
 
-  // Lesson 19: string-operators (HARD) - Independent
-  'string-operators-hard': {
-    id: 'string-operators-hard',
-    title: 'Managed Text Sequence Buffer with Bounds-Safe Indexing',
-    concepts: ['string-operators', 'operator-overloading', 'dynamic-memory', 'classes', 'destructors'],
+  'loops-hard': {
+    id: 'loops-hard',
+    title: 'Sequence Extreme Extractor',
+    syllabusModule: 'Start Writing C++',
+    concepts: ['loops', 'branching', 'arithmetic', 'variables'],
     difficulty: 'hard',
     level: 5,
-    problemStatement: 'Implement a self-managing text sequence buffer that stores and manipulates character sequences of arbitrary length without relying on standard library string wrappers.\nEach buffer instance owns its internal storage. The buffer must manage its own resource lifecycle correctly: creating copies of the buffer must produce independent copies without shared pointers, and memory must be released cleanly when an instance is destroyed.\nThe buffer type must integrate naturally with standard operator syntax:\n1. Combining two text buffers with standard addition notation (+) produces a new buffer containing the concatenated sequence.\n2. Accessing characters via index notation ([...]) provides zero-based element access. If an invalid or out-of-bounds index is accessed (< 0 or >= length), the buffer must return \'?\' safely without crashing or reading unallocated memory.\nGiven two words W1 and W2 and an integer query index K, combine the two words (W3 = W1 + W2) and display:\nCombined: <W3>, Length: <len>, Char at <K>: <char>',
-    constraints: [
-      'Each buffer must manage its own dynamic memory, ensuring independent copies and clean deallocation.',
-      'Indexing out of bounds must return \'?\' safely without undefined memory access.'
-    ],
-    inputFormat: '<W1:string> <W2:string> <K:int>',
-    outputFormat: 'Combined: <W3>, Length: <len>, Char at <K>: <char>',
-    starterCode: `#include <iostream>\nusing namespace std;\n\n// Write your complete solution here\n\nint main() {\n  return 0;\n}`,
+    problemStatement: 'Read an integer N (the count of numbers, N > 0), followed by N integers. Find and print the minimum value and the maximum value separated by a space, followed by a newline.',
+    constraints: ['N > 0 and each integer fits in a 32-bit signed int.'],
+    inputFormat: 'N followed by N integers.',
+    outputFormat: '<min> <max> followed by a newline.',
+    starterCode: `#include <iostream>\nusing namespace std;\n\nint main() {\n  int n;\n  if (cin >> n && n > 0) {\n    // Read n numbers and determine min and max\n  }\n  return 0;\n}`,
     testCases: [
       {
         id: 'test-1',
-        description: 'Valid in-bounds index lookup on concatenated string',
-        input: 'Open AI 3',
-        expectedOutput: 'Combined: OpenAI, Length: 6, Char at 3: n',
+        description: 'Visible sample: 5 mixed integers',
+        input: '5\n3 9 1 7 5',
+        expectedOutput: '1 9',
         isHidden: false
       },
       {
         id: 'test-2',
-        description: 'Out of bounds high index returns ?',
-        input: 'Alpha Beta 10',
-        expectedOutput: 'Combined: AlphaBeta, Length: 9, Char at 10: ?',
+        description: 'Visible sample: All negative integers',
+        input: '3\n-5 -2 -8',
+        expectedOutput: '-8 -2',
         isHidden: false
       },
       {
         id: 'test-3',
-        description: 'Hidden test: First character at index 0',
-        input: 'Deep Mind 0',
-        expectedOutput: 'Combined: DeepMind, Length: 8, Char at 0: D',
-        isHidden: true
+        description: 'Visible sample: Single element',
+        input: '1\n42',
+        expectedOutput: '42 42',
+        isHidden: false
       },
       {
         id: 'test-4',
-        description: 'Hidden test: Negative index returns ?',
-        input: 'Safe String -1',
-        expectedOutput: 'Combined: SafeString, Length: 10, Char at -1: ?',
+        description: 'Hidden test: Ascending sequence',
+        input: '4\n10 20 30 40',
+        expectedOutput: '10 40',
+        isHidden: true
+      },
+      {
+        id: 'test-5',
+        description: 'Hidden test: Identical zeroes',
+        input: '6\n0 0 0 0 0 0',
+        expectedOutput: '0 0',
         isHidden: true
       }
     ],
-    expectedBehavior: 'Safely manages dynamic character buffer with overloaded concatenation and subscript operators.',
+    expectedBehavior: 'Streams N integers in a loop, updating running min and max.',
     hints: [
-      'Think about how custom types manage dynamic char arrays. Which special member functions ensure memory isn\'t leaked or double-freed?',
-      'Overload operator+ to return a new combined instance and operator[] to inspect characters with bounds checking.',
-      'In your subscript operator, verify 0 <= idx && idx < length before indexing the underlying array; return \'?\' otherwise.'
+      'Read the first number to initialize both minVal and maxVal.',
+      'Then loop from i = 1 to n - 1 reading subsequent values and updating minVal/maxVal.',
+      'Print minVal << " " << maxVal << endl; at the end.'
     ],
-    solution: `#include <iostream>\nusing namespace std;\n\nclass DynamicString {\nprivate:\n  char* data;\n  int len;\npublic:\n  DynamicString() : data(nullptr), len(0) {\n    data = new char[1];\n    data[0] = '\\0';\n  }\n  DynamicString(const char* s) : len(0) {\n    while (s[len] != '\\0') len++;\n    data = new char[len + 1];\n    for (int i = 0; i < len; i++) data[i] = s[i];\n    data[len] = '\\0';\n  }\n  DynamicString(const DynamicString& o) : len(o.len) {\n    data = new char[len + 1];\n    for (int i = 0; i < len; i++) data[i] = o.data[i];\n    data[len] = '\\0';\n  }\n  ~DynamicString() {\n    delete[] data;\n  }\n  int length() const { return len; }\n  char operator[](int idx) const {\n    if (idx < 0 || idx >= len) return '?';\n    return data[idx];\n  }\n  DynamicString operator+(const DynamicString& o) const {\n    DynamicString res;\n    delete[] res.data;\n    res.len = len + o.len;\n    res.data = new char[res.len + 1];\n    for (int i = 0; i < len; i++) res.data[i] = data[i];\n    for (int i = 0; i < o.len; i++) res.data[len + i] = o.data[i];\n    res.data[res.len] = '\\0';\n    return res;\n  }\n  void print() const { cout << data; }\n};\n\nint main() {\n  char w1[64], w2[64];\n  int k;\n  if (cin >> w1 >> w2 >> k) {\n    DynamicString s1(w1), s2(w2);\n    DynamicString s3 = s1 + s2;\n    cout << "Combined: "; s3.print();\n    cout << ", Length: " << s3.length() << ", Char at " << k << ": " << s3[k];\n  }\n  return 0;\n}`,
-    prerequisiteConcepts: ['string-operators', 'operator-overloading', 'dynamic-memory', 'classes'],
-    isIndependent: true
+    solution: `#include <iostream>\nusing namespace std;\n\nint main() {\n  int n;\n  if (cin >> n && n > 0) {\n    int val;\n    cin >> val;\n    int minVal = val;\n    int maxVal = val;\n    for (int i = 1; i < n; i++) {\n      cin >> val;\n      if (val < minVal) minVal = val;\n      if (val > maxVal) maxVal = val;\n    }\n    cout << minVal << " " << maxVal << endl;\n  }\n  return 0;\n}`,
+    prerequisiteConcepts: ['loops', 'branching', 'variables'],
+    isIndependent: true,
+    isMultiConcept: false
   },
 
   // ==========================================
