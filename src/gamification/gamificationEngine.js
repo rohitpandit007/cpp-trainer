@@ -164,7 +164,40 @@ export class GamificationEngine {
       this.eventBus.on(LEARNING_EVENTS.COMPILE_FAILED, (data) => this.handleFailure(data, 'compile')),
       this.eventBus.on(LEARNING_EVENTS.RUNTIME_FAILED, (data) => this.handleFailure(data, 'runtime')),
       this.eventBus.on(LEARNING_EVENTS.TEST_FAILED, (data) => this.handleFailure(data, 'test')),
-      this.eventBus.on(LEARNING_EVENTS.CONCEPT_MASTERED, (data) => this.handleConceptMastered(data))
+      this.eventBus.on(LEARNING_EVENTS.CONCEPT_MASTERED, (data) => this.handleConceptMastered(data)),
+
+      // Beginner Learning Layer Events with strict anti-farming
+      this.eventBus.on(LEARNING_EVENTS.ONBOARDING_COMPLETED, () => {
+        if (!this.state.stats.onboardingCompleted) {
+          this.state.stats.onboardingCompleted = 1;
+          this.awardXP({ amount: 30, reason: 'Zero-to-C++ Onboarding completed' });
+          this.persist();
+        }
+      }),
+      this.eventBus.on(LEARNING_EVENTS.PREDICTION_CORRECT, (data) => {
+        const id = `pred_${data?.challengeId || 'unknown'}`;
+        if (!this.state.exerciseHistory[id]) {
+          this.state.exerciseHistory[id] = { count: 1 };
+          this.awardXP({ amount: 15, reason: 'Correct program prediction' });
+          this.persist();
+        }
+      }),
+      this.eventBus.on(LEARNING_EVENTS.MICRO_DEBUG_COMPLETED, (data) => {
+        const id = `debug_${data?.challengeId || 'unknown'}`;
+        if (!this.state.exerciseHistory[id]) {
+          this.state.exerciseHistory[id] = { count: 1 };
+          this.awardXP({ amount: 20, reason: 'Micro-debugging challenge fixed' });
+          this.persist();
+        }
+      }),
+      this.eventBus.on(LEARNING_EVENTS.DECOMPOSITION_COMPLETED, (data) => {
+        const id = `decomp_${data?.templateId || 'unknown'}`;
+        if (!this.state.exerciseHistory[id]) {
+          this.state.exerciseHistory[id] = { count: 1 };
+          this.awardXP({ amount: 25, reason: 'Problem decomposition completed' });
+          this.persist();
+        }
+      })
     );
   }
 

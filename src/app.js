@@ -18,6 +18,17 @@ import { ConceptVisualizer } from './visualization/index.js';
 import { GamificationEngine, GamificationUI } from './gamification/index.js';
 import { getUnseenBenchmarkProblem, benchmarkBattery } from './benchmark/index.js';
 import { storageManager } from './storageManager.js';
+import {
+  OnboardingEngine,
+  MentalModelsEngine,
+  VocabularyEngine,
+  WhyExplanationEngine,
+  PredictEngine,
+  DebugEngine,
+  DecompositionEngine,
+  ScaffoldingEngine,
+  BeginnerUI
+} from './beginner/index.js';
 
 const app = typeof document !== 'undefined' ? document.querySelector('#app') : null;
 const migratedStored = storageManager.getProfile();
@@ -80,7 +91,7 @@ const state = {
   profile: migratedStored,
   theme: savedTheme,
   lessonId: 'cpp-basics',
-  mode: 'course',
+  mode: (migratedStored?.completed?.length === 0 && !migratedStored?.beginner?.onboarding?.completed && !migratedStored?.beginner?.onboarding?.skipped) ? 'beginner' : 'course',
   source: lessons[0].example,
   stdin: '',
   showStdin: false,
@@ -95,7 +106,17 @@ const state = {
   jumpToWorkspace: false,
   currentIndependentExercise: getIndependentExercise('practice'),
   currentIsRetrieval: false,
-  showVisualizer: false
+  showVisualizer: false,
+  beginnerTab: 'onboarding',
+  onboardingEngine: new OnboardingEngine({
+    initialStep: migratedStored?.beginner?.onboarding?.currentStep || 0,
+    completed: migratedStored?.beginner?.onboarding?.completed || false,
+    skipped: migratedStored?.beginner?.onboarding?.skipped || false,
+    eventBus
+  }),
+  predictEngine: new PredictEngine({ eventBus }),
+  debugEngine: new DebugEngine({ eventBus }),
+  decompositionEngine: new DecompositionEngine({ eventBus })
 };
 
 let visualizer = null;
@@ -162,6 +183,14 @@ const save = () => {
   if (gamificationEngine) {
     state.profile.gamification = gamificationEngine.state;
   }
+  if (!state.profile.beginner) {
+    state.profile.beginner = {};
+  }
+  state.profile.beginner.onboarding = {
+    completed: state.onboardingEngine.completed,
+    currentStep: state.onboardingEngine.currentStep,
+    skipped: state.onboardingEngine.skipped
+  };
   storageManager.saveProfile(state.profile);
 };
 const esc = value => (value || '').replace(/[&<>]/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[x]));
@@ -171,6 +200,7 @@ const sidebar = () => {
   return `<aside role="navigation" aria-label="Course and mode navigation">
     <div class="brand"><span>✦</span> CodeBloom <b>C++</b></div>
     <button class="nav ${state.mode === 'course' ? 'active' : ''}" data-action="mode" data-mode="course">▦ &nbsp; Learning path</button>
+    <button class="nav ${state.mode === 'beginner' ? 'active' : ''}" data-action="mode" data-mode="beginner">🌱 &nbsp; Beginner Hub</button>
     <button class="nav ${state.mode === 'practice' ? 'active' : ''}" data-action="mode" data-mode="practice">⌁ &nbsp; Practice lab</button>
     <button class="nav ${state.mode === 'challenge' ? 'active' : ''}" data-action="mode" data-mode="challenge">⚡ &nbsp; Challenge mode</button>
     <button class="nav ${state.mode === 'mastery' ? 'active' : ''}" data-action="mode" data-mode="mastery">🏆 &nbsp; Mastery test</button>
@@ -506,9 +536,14 @@ const workspace = () => {
   const ex = currentExercise();
   const prompt = ex ? ex.problemStatement : (state.exercise === 'mini' ? l.mini : state.exercise === 'medium' ? l.medium : l.hard);
 
+  const isBrandNewLearner = (state.profile.completed?.length === 0) &&
+    !state.profile.beginner?.onboarding?.completed &&
+    !state.profile.beginner?.onboarding?.skipped;
+
   return `<main class="workspace">
     <div class="crumb">${l.module} <span>/</span> Lesson ${lessons.indexOf(l) + 1}</div>
     <h2>${l.title}</h2>
+    ${isBrandNewLearner ? BeginnerUI.renderWorkspaceBeginnerBanner(false) : ''}
     ${renderRecommendationBanner()}
     <div class="lesson-body">
       <section class="teach">
@@ -634,10 +669,35 @@ const independent = (type) => {
   </main>`;
 };
 
+const renderBeginnerHub = () => {
+  return BeginnerUI.renderHub(state.beginnerTab, {
+    onboarding: state.onboardingEngine,
+    predict: state.predictEngine,
+    debug: state.debugEngine,
+    decompose: state.decompositionEngine
+  });
+};
+
 const render = () => {
   if (!app) return;
   const gamificationPillHtml = gamificationEngine ? GamificationUI.renderHeaderPill(gamificationEngine.getSnapshot()) : '';
-  app.innerHTML = `<div class="shell">${sidebar()}<div class="content"><header role="banner"><div>${state.mode === 'course' ? 'Good to see you, coder.' : state.mode === 'benchmark' ? 'Independent proficiency benchmark' : state.mode === 'mastery' ? 'Final assessment' : 'Keep your hands on the keyboard.'}</div><div class="header-right"><div class="progression-pill-slot">${gamificationPillHtml}</div><button class="theme-toggle-btn" data-action="toggle-theme" title="Toggle night mode">${state.theme === 'dark' ? '☀️ Light' : '🌙 Night'}</button><span class="avatar">R</span></div></header>${state.mode === 'course' ? `<div class="course">${map()}${lessonList()}${workspace()}</div>` : independent(state.mode)}</div></div>`;
+  const headerSubtitle = state.mode === 'course'
+    ? 'Good to see you, coder.'
+    : state.mode === 'benchmark'
+    ? 'Independent proficiency benchmark'
+    : state.mode === 'mastery'
+    ? 'Final assessment'
+    : state.mode === 'beginner'
+    ? 'Beginner learning hub'
+    : 'Keep your hands on the keyboard.';
+
+  const mainContent = state.mode === 'course'
+    ? `<div class="course">${map()}${lessonList()}${workspace()}</div>`
+    : state.mode === 'beginner'
+    ? renderBeginnerHub()
+    : independent(state.mode);
+
+  app.innerHTML = `<div class="shell">${sidebar()}<div class="content"><header role="banner"><div>${headerSubtitle}</div><div class="header-right"><div class="progression-pill-slot">${gamificationPillHtml}</div><button class="theme-toggle-btn" data-action="toggle-theme" title="Toggle night mode">${state.theme === 'dark' ? '☀️ Light' : '🌙 Night'}</button><span class="avatar">R</span></div></header>${mainContent}</div></div>`;
   if (state.jumpToWorkspace) {
     state.jumpToWorkspace = false;
     scrollToLearningWorkspace(app);
@@ -674,6 +734,15 @@ app.addEventListener('input', e => {
     companionController.notifyTyping();
   }
   if (e.target.matches('[data-stdin]')) state.stdin = e.target.value;
+  if (e.target.matches('[data-onboarding-source]')) {
+    state.onboardingEngine.updateSource(e.target.value);
+  }
+  if (e.target.matches('[data-debug-source]')) {
+    state.debugEngine.updateUserSource(e.target.value);
+  }
+  if (e.target.matches('[data-decomp-input]')) {
+    state.decompositionEngine.updateField(e.target.dataset.decompInput, e.target.value);
+  }
 });
 
 app.addEventListener('click', async e => {
@@ -764,10 +833,195 @@ app.addEventListener('click', async e => {
     state.assessmentFeedback = null;
     state.hintIndex = 0;
     state.showSolution = false;
-    state.currentIndependentExercise = getIndependentExercise(state.mode);
-    state.source = state.currentIndependentExercise?.starterCode || starterTemplate;
+    if (state.mode === 'beginner') {
+      state.source = starterTemplate;
+    } else if (state.mode === 'course') {
+      state.source = current().example;
+    } else {
+      state.currentIndependentExercise = getIndependentExercise(state.mode);
+      state.source = state.currentIndependentExercise?.starterCode || starterTemplate;
+    }
+    render();
+    if (state.mode === 'course') {
+      addLessonNavigation();
+    }
+    return;
+  }
+
+  if (action === 'beginner-tab') {
+    state.beginnerTab = el.dataset.tabId;
+    render();
+    return;
+  }
+
+  if (action === 'onboarding-continue') {
+    const res = state.onboardingEngine.advanceStep();
+    if (res && res.completed) {
+      state.mode = 'course';
+      save();
+      render();
+      addLessonNavigation();
+    } else {
+      save();
+      render();
+    }
+    return;
+  }
+
+  if (action === 'onboarding-skip') {
+    state.onboardingEngine.skipOnboarding();
+    state.mode = 'course';
+    save();
     render();
     addLessonNavigation();
+    return;
+  }
+
+  if (action === 'onboarding-run') {
+    const btn = el;
+    btn.disabled = true;
+    btn.textContent = '⏳ Compiling...';
+    try {
+      const res = await fetch('/api/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: state.onboardingEngine.source, stdin: '' })
+      });
+      const execResult = await res.json();
+      state.onboardingEngine.evaluateStep(execResult);
+      save();
+      render();
+    } catch (err) {
+      state.onboardingEngine.stepFeedback = { passed: false, message: `Runner error: ${err.message}` };
+      render();
+    }
+    return;
+  }
+
+  if (action === 'mm-check-opt') {
+    const modelId = el.dataset.modelId;
+    const optIdx = Number(el.dataset.optIdx);
+    const model = new MentalModelsEngine().getModel(modelId);
+    if (model) {
+      const card = el.closest('.mental-model-card');
+      if (card) {
+        card.outerHTML = MentalModelsEngine.renderCard(model, {
+          selectedCheck: optIdx,
+          checkEvaluated: true
+        });
+      }
+    }
+    return;
+  }
+
+  if (action === 'pick-vocab') {
+    const termKey = el.dataset.termKey;
+    const explorer = el.closest('.vocab-explorer');
+    if (explorer) {
+      explorer.outerHTML = VocabularyEngine.renderGlossaryExplorer(termKey);
+    }
+    return;
+  }
+
+  if (action === 'predict-select') {
+    state.predictEngine.selectOption(Number(el.dataset.optIdx));
+    render();
+    return;
+  }
+
+  if (action === 'predict-submit') {
+    const challenge = state.predictEngine.getCurrentChallenge();
+    const btn = el;
+    btn.disabled = true;
+    btn.textContent = '⏳ Running C++...';
+    try {
+      const res = await fetch('/api/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: challenge.code, stdin: '' })
+      });
+      const execResult = await res.json();
+      state.predictEngine.submitPrediction(execResult);
+      save();
+      render();
+    } catch (err) {
+      state.predictEngine.submitPrediction({ status: 'execution_error', stdout: challenge.expectedOutput });
+      save();
+      render();
+    }
+    return;
+  }
+
+  if (action === 'predict-next') {
+    state.predictEngine.setChallengeIndex(state.predictEngine.currentChallengeIndex + 1);
+    render();
+    return;
+  }
+
+  if (action === 'predict-retry') {
+    state.predictEngine.resetState();
+    render();
+    return;
+  }
+
+  if (action === 'debug-scaffold-opt') {
+    state.debugEngine.selectScaffoldOption(Number(el.dataset.optIdx));
+    render();
+    return;
+  }
+
+  if (action === 'debug-toggle-hint') {
+    state.debugEngine.toggleHint();
+    render();
+    return;
+  }
+
+  if (action === 'debug-run') {
+    const btn = el;
+    btn.disabled = true;
+    btn.textContent = '⏳ Compiling...';
+    try {
+      const res = await fetch('/api/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: state.debugEngine.state.userSource, stdin: '' })
+      });
+      const execResult = await res.json();
+      state.debugEngine.evaluateFix(execResult);
+      save();
+      render();
+    } catch (err) {
+      state.debugEngine.evaluateFix({ status: 'execution_error', error: err.message });
+      render();
+    }
+    return;
+  }
+
+  if (action === 'debug-next') {
+    state.debugEngine.setChallengeIndex(state.debugEngine.currentIndex + 1);
+    render();
+    return;
+  }
+
+  if (action === 'decomp-scaffold') {
+    state.decompositionEngine.setScaffoldLevel(el.dataset.lvl);
+    render();
+    return;
+  }
+
+  if (action === 'decomp-complete') {
+    state.decompositionEngine.completeDecomposition();
+    state.source = state.decompositionEngine.userFields.code;
+    state.mode = 'course';
+    save();
+    render();
+    addLessonNavigation();
+    return;
+  }
+
+  if (action === 'decomp-next') {
+    state.decompositionEngine.setTemplateIndex(state.decompositionEngine.currentIndex + 1);
+    render();
     return;
   }
 

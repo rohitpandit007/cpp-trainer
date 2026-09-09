@@ -1,6 +1,6 @@
 {
   "releaseVersion": "1.0.0-rc1",
-  "timestamp": "2026-09-09T11:37:42.060Z",
+  "timestamp": "2026-09-09T12:40:43.817Z",
   "environment": {
     "nodeVersion": "v20.20.2",
     "platform": "win32",
@@ -12,7 +12,7 @@
     "lessonExerciseSlots": 60,
     "catalogExercises": 75,
     "benchmarkTransferProblems": 8,
-    "testFiles": 24,
+    "testFiles": 25,
     "companionAssets": 12
   },
   "invariants": {
@@ -85,18 +85,18 @@
     }
   ],
   "fileHashes": {
-    "src/app.js": "21b2a16ebf3ff6283ecd5da4d9efb23fc4e7e7a91dc8a6035d73e672d9f659a9",
+    "src/app.js": "fd5b79dd796474a1af7b061474952c9cf4e3a37af8ce806c7047085b0b3a94b3",
     "src/courseData.js": "2b36eb3a4aa595deed2c06a1c67f4dd7ab5349bb864c1e8d5e2138f2abb40c9d",
     "src/exerciseData.js": "7be91628ede3bb61496c9d8377af7568003c5d3a81dd62d4ec4fd7f3423486fe",
     "src/learningEngine.js": "052923b07efd902aa2a8e6b7f7e323c97270b41aae7624de7e116d1cd770adf1",
-    "src/masteryEngine.js": "0424a731e27b555548caf1759f92526f15f19a0836a60e560e398ce8bcf48a28",
-    "src/eventBus.js": "61ba9b8181f8bd7647e730c31b1e6fa1e78b92b60ac52aacaa26220d40896d29",
+    "src/masteryEngine.js": "9d5d2871db6382229b5089822bcf05258ef72028c04f17ec1c3ed942736fc0b7",
+    "src/eventBus.js": "ba16bce83b80903aa5e44ed33c256e7e15ab2ff85bfad7560bc50e2644e1e073",
     "src/benchmark/benchmarkData.js": "c69246eb8f514fda7b490c75a46a3e52035534461c3cda465f3809a2c938a56a",
     "src/benchmark/benchmarkEngine.js": "59e430423d4af0a71c26795f4bcef0a76348b6ad400dd80bf32be7af1e194f8a",
-    "src/companion/companionController.js": "984f6ded44aba03dffde8505d0ff869ebe6491b580204e8861e8ccff6e2e9c33",
+    "src/companion/companionController.js": "1a13d276d0be8801b46f2f090b12c886623da9b9897c7ca2c6c94ce490d41a08",
     "src/companion/assetRegistry.js": "e3fdda29aa46b23f3999b8906f589528abe6a2969f0ae412531b248ae8d8d951",
     "src/visualization/conceptAnalyzer.js": "19d418335c81f7aa3cab977a29648f097d8c4f7b582f87f3b3c495e4754a5af9",
-    "src/gamification/gamificationEngine.js": "7c429205facbf867a34fb2f2c0bba8143fe56aa1ea7d2449d9227b9eb3ba536e",
+    "src/gamification/gamificationEngine.js": "6fa7cf09c4bdbe2f001414e3b86cb167072b088caf7d4f192517c44b6e28cec8",
     "server/server.js": "9eaf0f5a9777be7595fb3b6151b00c0eab85aa9141472b3cb9832b6f8478cc84",
     "server/executor.js": "16394cca6a845179355feb8c0805179cc1426307375d06c0a21850ad6c26b63c",
     "server/assessor.js": "765110bffb6e8d6decc5c6cd9660def98c3d7bcac81ad30a348edab288338d97"

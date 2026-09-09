@@ -77,7 +77,21 @@ export class CompanionController {
       this.eventBus.on(LEARNING_EVENTS.LEVEL_UP, (data) => this.handleLevelUp(data)),
       this.eventBus.on(LEARNING_EVENTS.ACHIEVEMENT_UNLOCKED, (data) => this.handleAchievementUnlocked(data)),
       this.eventBus.on(LEARNING_EVENTS.CURRICULUM_COMPLETED, (data) => this.handleCurriculumCompleted(data)),
-      this.eventBus.on(LEARNING_EVENTS.INDEPENDENT_SUCCESS, (data) => this.handleIndependentSuccess(data))
+      this.eventBus.on(LEARNING_EVENTS.INDEPENDENT_SUCCESS, (data) => this.handleIndependentSuccess(data)),
+
+      // Beginner Learning Layer Events
+      this.eventBus.on(LEARNING_EVENTS.PREDICTION_SUBMITTED, () => {
+        this.transitionTo(COMPANION_STATES.THINKING, { sourceEvent: LEARNING_EVENTS.PREDICTION_SUBMITTED });
+      }),
+      this.eventBus.on(LEARNING_EVENTS.PREDICTION_CORRECT, () => {
+        this.transitionTo(COMPANION_STATES.TEST_PASSED, { sourceEvent: LEARNING_EVENTS.PREDICTION_CORRECT });
+      }),
+      this.eventBus.on(LEARNING_EVENTS.DECOMPOSITION_COMPLETED, () => {
+        this.transitionTo(COMPANION_STATES.CELEBRATION, { sourceEvent: LEARNING_EVENTS.DECOMPOSITION_COMPLETED });
+      }),
+      this.eventBus.on(LEARNING_EVENTS.ONBOARDING_COMPLETED, () => {
+        this.transitionTo(COMPANION_STATES.CELEBRATION, { sourceEvent: LEARNING_EVENTS.ONBOARDING_COMPLETED });
+      })
     );
   }
 

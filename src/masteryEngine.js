@@ -677,6 +677,7 @@ export function migrateProfile(rawProfile) {
   };
 
   const gamification = profile.gamification && typeof profile.gamification === 'object' ? profile.gamification : undefined;
+  const beginner = profile.beginner && typeof profile.beginner === 'object' ? profile.beginner : undefined;
 
   const result = {
     version: 3,
@@ -691,6 +692,9 @@ export function migrateProfile(rawProfile) {
 
   if (gamification) {
     result.gamification = gamification;
+  }
+  if (beginner) {
+    result.beginner = beginner;
   }
 
   return result;
