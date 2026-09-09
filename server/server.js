@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { executeCpp, findCompiler } from './executor.js';
+import { executeCpp, findCompiler, cleanStaleTempDirectories } from './executor.js';
 import { assessSubmission } from './assessor.js';
 import { exerciseCatalog } from '../src/exerciseData.js';
 
@@ -26,6 +26,26 @@ const MIME_TYPES = {
 };
 
 const MAX_BODY_BYTES = 512 * 1024; // 512 KB
+const MAX_CONCURRENT_EXECUTIONS = 4;
+let activeExecutions = 0;
+const executionQueue = [];
+
+function acquireExecutionSlot() {
+  if (activeExecutions < MAX_CONCURRENT_EXECUTIONS) {
+    activeExecutions++;
+    return Promise.resolve();
+  }
+  return new Promise(resolve => executionQueue.push(resolve));
+}
+
+function releaseExecutionSlot() {
+  activeExecutions--;
+  if (executionQueue.length > 0 && activeExecutions < MAX_CONCURRENT_EXECUTIONS) {
+    activeExecutions++;
+    const next = executionQueue.shift();
+    next();
+  }
+}
 
 export function createServer() {
   return http.createServer(async (req, res) => {
@@ -93,16 +113,30 @@ export function createServer() {
           return;
         }
 
+        const abortController = new AbortController();
+        req.on('close', () => {
+          if (!res.writableEnded) {
+            abortController.abort();
+          }
+        });
+
+        await acquireExecutionSlot();
         try {
-          const result = await executeCpp(source, { stdin, timeoutMs, compileTimeoutMs });
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify(result));
+          const result = await executeCpp(source, { stdin, timeoutMs, compileTimeoutMs, abortSignal: abortController.signal });
+          if (!res.writableEnded) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+          }
         } catch (err) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({
-            status: 'execution_error',
-            error: err.message || 'Internal server error during execution.'
-          }));
+          if (!res.writableEnded) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              status: 'execution_error',
+              error: err.message || 'Internal server error during execution.'
+            }));
+          }
+        } finally {
+          releaseExecutionSlot();
         }
       });
       return;
@@ -151,16 +185,30 @@ export function createServer() {
           return;
         }
 
+        const abortController = new AbortController();
+        req.on('close', () => {
+          if (!res.writableEnded) {
+            abortController.abort();
+          }
+        });
+
+        await acquireExecutionSlot();
         try {
           const result = await assessSubmission(source, targetExercise, { testTimeoutMs: timeoutMs, compileTimeoutMs });
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify(result));
+          if (!res.writableEnded) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(result));
+          }
         } catch (err) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({
-            status: 'assessment_error',
-            error: err.message || 'Internal server error during assessment.'
-          }));
+          if (!res.writableEnded) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              status: 'assessment_error',
+              error: err.message || 'Internal server error during assessment.'
+            }));
+          }
+        } finally {
+          releaseExecutionSlot();
         }
       });
       return;
@@ -246,6 +294,7 @@ export function createServer() {
 }
 
 export function startServer(port = process.env.PORT || 3000) {
+  cleanStaleTempDirectories();
   const server = createServer();
   return new Promise((resolve) => {
     server.listen(port, '0.0.0.0', () => {

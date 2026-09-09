@@ -1,0 +1,104 @@
+{
+  "releaseVersion": "1.0.0-rc1",
+  "timestamp": "2026-09-09T10:52:01.523Z",
+  "environment": {
+    "nodeVersion": "v20.20.2",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "counts": {
+    "modules": 5,
+    "lessons": 20,
+    "lessonExerciseSlots": 60,
+    "catalogExercises": 75,
+    "benchmarkTransferProblems": 8,
+    "testFiles": 24,
+    "companionAssets": 12
+  },
+  "invariants": {
+    "noSoundEnforced": true,
+    "noRuntimeTracingEnforced": true,
+    "curriculumFrozen": true,
+    "audioFilesPresent": 0,
+    "debuggerIntegrationsPresent": 0
+  },
+  "verifiedAssets": [
+    {
+      "state": "IDLE",
+      "filename": "default.png",
+      "exists": true
+    },
+    {
+      "state": "THINKING",
+      "filename": "thinking.png",
+      "exists": true
+    },
+    {
+      "state": "CODING",
+      "filename": "coding.png",
+      "exists": true
+    },
+    {
+      "state": "TEST_PASSED",
+      "filename": "test passed.png",
+      "exists": true
+    },
+    {
+      "state": "WRONG_OUTPUT",
+      "filename": "wrong answer.png",
+      "exists": true
+    },
+    {
+      "state": "COMPILE_ERROR",
+      "filename": "compile error.png",
+      "exists": true
+    },
+    {
+      "state": "RUNTIME_ERROR",
+      "filename": "runtime error.png",
+      "exists": true
+    },
+    {
+      "state": "TIRED",
+      "filename": "repeated failure.png",
+      "exists": true
+    },
+    {
+      "state": "CELEBRATION",
+      "filename": "all tests passed.png",
+      "exists": true
+    },
+    {
+      "state": "INDEPENDENT_SUCCESS",
+      "filename": "solved without hints.png",
+      "exists": true
+    },
+    {
+      "state": "MASTERY",
+      "filename": "concept mastered.png",
+      "exists": true
+    },
+    {
+      "state": "ULTIMATE_MASTERY",
+      "filename": "ultimate mastery.png",
+      "exists": true
+    }
+  ],
+  "fileHashes": {
+    "src/app.js": "21b2a16ebf3ff6283ecd5da4d9efb23fc4e7e7a91dc8a6035d73e672d9f659a9",
+    "src/courseData.js": "2b36eb3a4aa595deed2c06a1c67f4dd7ab5349bb864c1e8d5e2138f2abb40c9d",
+    "src/exerciseData.js": "7be91628ede3bb61496c9d8377af7568003c5d3a81dd62d4ec4fd7f3423486fe",
+    "src/learningEngine.js": "052923b07efd902aa2a8e6b7f7e323c97270b41aae7624de7e116d1cd770adf1",
+    "src/masteryEngine.js": "0424a731e27b555548caf1759f92526f15f19a0836a60e560e398ce8bcf48a28",
+    "src/eventBus.js": "61ba9b8181f8bd7647e730c31b1e6fa1e78b92b60ac52aacaa26220d40896d29",
+    "src/benchmark/benchmarkData.js": "c69246eb8f514fda7b490c75a46a3e52035534461c3cda465f3809a2c938a56a",
+    "src/benchmark/benchmarkEngine.js": "59e430423d4af0a71c26795f4bcef0a76348b6ad400dd80bf32be7af1e194f8a",
+    "src/companion/companionController.js": "984f6ded44aba03dffde8505d0ff869ebe6491b580204e8861e8ccff6e2e9c33",
+    "src/companion/assetRegistry.js": "e3fdda29aa46b23f3999b8906f589528abe6a2969f0ae412531b248ae8d8d951",
+    "src/visualization/conceptAnalyzer.js": "19d418335c81f7aa3cab977a29648f097d8c4f7b582f87f3b3c495e4754a5af9",
+    "src/gamification/gamificationEngine.js": "7c429205facbf867a34fb2f2c0bba8143fe56aa1ea7d2449d9227b9eb3ba536e",
+    "server/server.js": "9eaf0f5a9777be7595fb3b6151b00c0eab85aa9141472b3cb9832b6f8478cc84",
+    "server/executor.js": "7d18b88bef6a74bb4385d911068152084d0b123a5c359076bef9153409465ca5",
+    "server/assessor.js": "846a36d823441d6c19dfdee97dc12218bc3355cc1eb00464e102de51e04b2c1b"
+  }
+}

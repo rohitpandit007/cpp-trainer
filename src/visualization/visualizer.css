@@ -1,0 +1,706 @@
+/**
+ * C++ Concept Visualizer Stylesheet (Phase D3)
+ * CodeBloom C++ Trainer
+ * Modern, responsive, accessible visualization drawer with dark-mode & reduced-motion support.
+ */
+
+/* --- Visualizer Container Drawer --- */
+.concept-visualizer-container {
+  margin: 20px 0;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #dbe3db;
+  box-shadow: 0 10px 30px rgba(25, 42, 42, 0.08);
+  overflow: hidden;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.concept-visualizer-container.hidden {
+  display: none !important;
+}
+
+/* --- Header & Educational Context --- */
+.vis-header {
+  padding: 18px 22px;
+  background: #f4f8f5;
+  border-bottom: 1px solid #dce4dc;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.vis-header-left h3 {
+  margin: 0 0 6px;
+  font: 700 20px 'Fraunces', serif;
+  color: #173e36;
+}
+
+.vis-objective {
+  margin: 0;
+  font-size: 13px;
+  color: #556c67;
+  line-height: 1.45;
+}
+
+.provenance-tag {
+  display: inline-block;
+  font: 700 9px 'DM Mono', monospace;
+  letter-spacing: 0.6px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: #d8ecdf;
+  color: #276251;
+  text-transform: uppercase;
+  margin-left: 8px;
+}
+
+/* --- Step Walkthrough Card --- */
+.vis-step-card {
+  padding: 16px 22px;
+  background: #fffdfa;
+  border-bottom: 1px solid #eaebe4;
+}
+
+.step-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.step-title {
+  font: 700 15px 'DM Sans', sans-serif;
+  color: #19312c;
+}
+
+.step-line-pill {
+  font: 600 11px 'DM Mono', monospace;
+  background: #e8f0eb;
+  color: #2e6657;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.step-code-preview {
+  margin: 6px 0 10px;
+  background: #192a2d;
+  color: #e3f2e9;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font: 12px/1.4 'DM Mono', monospace;
+  overflow-x: auto;
+}
+
+.step-explanation {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #3b504c;
+  background: #fdf6ec;
+  border-left: 3px solid #e9a34e;
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
+}
+
+/* --- Visual Sections (Memory, Stack, Heap, Classes, Objects) --- */
+.vis-stage-body {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: #fafbfa;
+}
+
+.vis-section {
+  background: #ffffff;
+  border: 1px solid #e1e7de;
+  border-radius: 9px;
+  padding: 14px 16px;
+}
+
+.vis-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font: 700 12px 'DM Mono', monospace;
+  letter-spacing: 0.5px;
+  color: #3f5b55;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #edf1eb;
+  padding-bottom: 6px;
+}
+
+/* Variables Grid */
+.vis-variable-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.vis-variable-card {
+  background: #f6faf7;
+  border: 1px solid #cce2d6;
+  border-radius: 8px;
+  padding: 10px 12px;
+  position: relative;
+  transition: all 0.25s ease;
+}
+
+.vis-variable-card.highlight-pulse {
+  border-color: #3b9b77;
+  box-shadow: 0 0 12px rgba(59, 155, 119, 0.35);
+  background: #ebf7f1;
+}
+
+.vis-variable-card.shadowed {
+  opacity: 0.55;
+  background: #f0f0ee;
+  border-color: #d0d0cc;
+}
+
+.var-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font: 11px 'DM Mono', monospace;
+  margin-bottom: 6px;
+}
+
+.var-type {
+  color: #2b7762;
+  font-weight: 600;
+}
+
+.var-name {
+  color: #142825;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.var-addr {
+  color: #8fa09b;
+  font-size: 9px;
+}
+
+.var-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.var-value {
+  font: 700 16px 'DM Mono', monospace;
+  color: #102623;
+}
+
+.var-value .old-val {
+  font-size: 11px;
+  color: #92a49f;
+  text-decoration: line-through;
+  margin-right: 4px;
+}
+
+.alias-pill, .shadowed-pill {
+  font: 600 9px 'DM Mono', monospace;
+  padding: 2px 5px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.alias-pill {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.shadowed-pill {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Call Stack */
+.vis-stack-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vis-stack-frame {
+  border-radius: 7px;
+  padding: 10px 14px;
+  border: 1px solid #d4dfd8;
+  background: #fcfdfc;
+  transition: all 0.25s ease;
+}
+
+.vis-stack-frame.frame-active {
+  background: #f0fdf4;
+  border-color: #86efac;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.15);
+}
+
+.vis-stack-frame.frame-suspended {
+  opacity: 0.7;
+  background: #f8faf9;
+}
+
+.frame-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.frame-tag {
+  font: 700 9px 'DM Mono', monospace;
+  background: #2b7762;
+  color: #fff;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.frame-name {
+  font: 700 13px 'DM Mono', monospace;
+  color: #173832;
+}
+
+.frame-locals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.local-pill {
+  font: 11px 'DM Mono', monospace;
+  background: #eef4f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.frame-return {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #15803d;
+}
+
+/* Classes & Objects */
+.vis-class-grid, .vis-object-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.vis-class-box {
+  border: 1px solid #cce0f5;
+  background: #f5f9ff;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.class-title-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 700 13px 'DM Mono', monospace;
+  color: #1d4ed8;
+  border-bottom: 1px solid #e0ecfb;
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+.abstract-badge {
+  font-size: 9px;
+  background: #fef3c7;
+  color: #b45309;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.vis-object-box {
+  border: 1px solid #d1fae5;
+  background: #ecfdf5;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.obj-header {
+  font: 700 13px 'DM Mono', monospace;
+  color: #065f46;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #a7f3d0;
+  padding-bottom: 4px;
+}
+
+.member-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  padding: 2px 0;
+}
+
+.subobject-card {
+  margin-top: 4px;
+  padding: 4px 6px;
+  background: #e0f2fe;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #0369a1;
+}
+
+/* Relationships Bar */
+.vis-relationships-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  background: #f4f6f4;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid #e2e6e2;
+}
+
+.rel-label {
+  font: 700 10px 'DM Mono', monospace;
+  color: #556b66;
+}
+
+.rel-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rel-pill {
+  font: 600 11px 'DM Mono', monospace;
+  padding: 3px 8px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #d2dcd5;
+  color: #1c3d36;
+}
+
+.rel-points_to {
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+
+.rel-inherits {
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.rel-dispatches {
+  border-color: #f472b6;
+  color: #9d174d;
+}
+
+/* Output Console */
+.vis-output-card {
+  background: #142225;
+  color: #d1fae5;
+  padding: 10px 14px;
+  border-radius: 6px;
+}
+
+.output-card-header {
+  font: 700 10px 'DM Mono', monospace;
+  color: #79a89e;
+  margin-bottom: 4px;
+}
+
+.vis-output-card pre {
+  margin: 0;
+  font: 12px/1.4 'DM Mono', monospace;
+}
+
+/* --- Player Controls Bar --- */
+.vis-player-bar {
+  padding: 12px 22px;
+  background: #edf3ee;
+  border-top: 1px solid #dce4dc;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.player-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vis-btn {
+  padding: 7px 12px;
+  font: 600 12px 'DM Sans', sans-serif;
+  border-radius: 6px;
+  border: 1px solid #c4d4ca;
+  background: #ffffff;
+  color: #1a3832;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vis-btn:hover:not(:disabled) {
+  background: #e2ede5;
+  border-color: #a8c4b2;
+}
+
+.vis-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.vis-play-btn.btn-play {
+  background: #2b7762;
+  color: #ffffff;
+  border-color: #2b7762;
+}
+
+.vis-play-btn.btn-play:hover {
+  background: #236553;
+}
+
+.vis-play-btn.btn-pause {
+  background: #d97706;
+  color: #ffffff;
+  border-color: #d97706;
+}
+
+.player-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.step-indicator {
+  font: 11px 'DM Mono', monospace;
+  color: #4a6660;
+}
+
+.step-dots {
+  display: flex;
+  gap: 5px;
+}
+
+.step-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #cbd8cf;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.step-dot.active {
+  background: #2b7762;
+  transform: scale(1.3);
+}
+
+.step-dot.completed {
+  background: #8faea1;
+}
+
+.player-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mode-toggle-btn {
+  font: 11px 'DM Mono', monospace;
+  background: transparent;
+  border: 1px solid #c4d4ca;
+  padding: 5px 9px;
+  border-radius: 6px;
+  color: #3b5751;
+  cursor: pointer;
+}
+
+.close-vis-btn {
+  background: transparent;
+  border: none;
+  font-size: 15px;
+  color: #79918b;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.close-vis-btn:hover {
+  color: #17282b;
+}
+
+/* Fallback Notice Card */
+.vis-fallback-card {
+  padding: 24px;
+  text-align: center;
+}
+
+.vis-fallback-card p {
+  color: #556c67;
+  font-size: 14px;
+  max-width: 480px;
+  margin: 0 auto 16px;
+}
+
+.load-demo-btn {
+  background: #2b7762;
+  color: #fff;
+  border: none;
+  padding: 9px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* --- Pulse Animations --- */
+@keyframes vis-highlight {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.highlight-pulse {
+  animation: vis-highlight 0.8s ease-out;
+}
+
+/* ==============================================================
+   Dark Mode Styles
+   ============================================================== */
+body.dark-mode .concept-visualizer-container {
+  background: #141d2c;
+  border-color: #223043;
+}
+
+body.dark-mode .vis-header {
+  background: #121a26;
+  border-bottom-color: #233144;
+}
+
+body.dark-mode .vis-header-left h3 {
+  color: #93c5fd;
+}
+
+body.dark-mode .vis-objective {
+  color: #94a3b8;
+}
+
+body.dark-mode .vis-step-card {
+  background: #152232;
+  border-bottom-color: #223043;
+}
+
+body.dark-mode .step-title {
+  color: #e2e8f0;
+}
+
+body.dark-mode .step-line-pill {
+  background: #1e2b3e;
+  color: #38bdf8;
+}
+
+body.dark-mode .step-explanation {
+  background: #28211a;
+  color: #fed7aa;
+  border-left-color: #f97316;
+}
+
+body.dark-mode .vis-stage-body {
+  background: #0f172a;
+}
+
+body.dark-mode .vis-section {
+  background: #152232;
+  border-color: #23374d;
+}
+
+body.dark-mode .vis-section-title {
+  color: #94a3b8;
+  border-bottom-color: #1e2b3e;
+}
+
+body.dark-mode .vis-variable-card {
+  background: #192738;
+  border-color: #2d4158;
+}
+
+body.dark-mode .var-value {
+  color: #e2e8f0;
+}
+
+body.dark-mode .vis-stack-frame {
+  background: #192738;
+  border-color: #2d4158;
+}
+
+body.dark-mode .vis-class-box {
+  background: #172436;
+  border-color: #283e58;
+}
+
+body.dark-mode .vis-object-box {
+  background: #132824;
+  border-color: #1e453c;
+}
+
+body.dark-mode .vis-relationships-bar {
+  background: #121c2a;
+  border-color: #203146;
+}
+
+body.dark-mode .rel-pill {
+  background: #1a2738;
+  color: #cbd5e1;
+}
+
+body.dark-mode .vis-player-bar {
+  background: #121a26;
+  border-top-color: #223043;
+}
+
+body.dark-mode .vis-btn {
+  background: #1a2536;
+  color: #cbd5e1;
+  border-color: #2b3b52;
+}
+
+body.dark-mode .vis-btn:hover:not(:disabled) {
+  background: #24344b;
+}
+
+/* ==============================================================
+   Reduced Motion Mode
+   ============================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .highlight-pulse {
+    animation: none !important;
+  }
+  .concept-visualizer-container,
+  .vis-btn,
+  .step-dot {
+    transition: none !important;
+  }
+}
+
+.reduced-motion .highlight-pulse {
+  animation: none !important;
+}
+
+/* ==============================================================
+   Responsive Adaptations
+   ============================================================== */
+@media (max-width: 768px) {
+  .vis-header {
+    flex-direction: column;
+  }
+  .vis-player-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .player-left, .player-right {
+    justify-content: center;
+  }
+}

@@ -34,6 +34,56 @@ export async function killProcessTree(pid) {
 }
 
 /**
+ * Cleans orphaned temporary execution folders older than maxAgeMs.
+ */
+export function cleanStaleTempDirectories(maxAgeMs = 10 * 60 * 1000) {
+  const tmpBase = os.tmpdir();
+  try {
+    const entries = fsSync.readdirSync(tmpBase, { withFileTypes: true });
+    const now = Date.now();
+    for (const entry of entries) {
+      if (entry.isDirectory() && (entry.name.startsWith('cpp-trainer-') || entry.name.startsWith('cpp-assess-'))) {
+        const fullPath = path.join(tmpBase, entry.name);
+        try {
+          const stats = fsSync.statSync(fullPath);
+          if (now - stats.mtimeMs > maxAgeMs) {
+            fsSync.rmSync(fullPath, { recursive: true, force: true });
+          }
+        } catch {}
+      }
+    }
+  } catch {}
+}
+
+/**
+ * Creates a sanitized environment object passing only minimal required OS runtime paths,
+ * preventing arbitrary learner code from accessing host secrets or tokens.
+ */
+export function createCleanEnv(compilerDir) {
+  const pathSep = process.platform === 'win32' ? ';' : ':';
+  const cleanEnv = {};
+
+  const SAFE_KEYS = process.platform === 'win32'
+    ? ['SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP', 'COMSPEC', 'PATHEXT']
+    : ['TMPDIR', 'HOME'];
+
+  for (const key of SAFE_KEYS) {
+    if (process.env[key]) {
+      cleanEnv[key] = process.env[key];
+    }
+  }
+
+  const sys32 = process.env.SYSTEMROOT ? path.join(process.env.SYSTEMROOT, 'System32') : 'C:\\Windows\\System32';
+  const windir = process.env.SYSTEMROOT || 'C:\\Windows';
+  const basePaths = process.platform === 'win32'
+    ? [compilerDir, sys32, windir]
+    : [compilerDir, '/usr/local/bin', '/usr/bin', '/bin'];
+
+  cleanEnv.PATH = basePaths.filter(Boolean).join(pathSep);
+  return cleanEnv;
+}
+
+/**
  * Searches for an available C++ compiler.
  */
 export function findCompiler(preferred) {
@@ -183,7 +233,8 @@ export async function executeCpp(source, options = {}) {
     timeoutMs = DEFAULT_TIMEOUT_MS,
     compileTimeoutMs = DEFAULT_COMPILE_TIMEOUT_MS,
     maxOutputBytes = DEFAULT_MAX_OUTPUT_BYTES,
-    compilerPath = null
+    compilerPath = null,
+    abortSignal = null
   } = options;
 
   const trimmedSource = typeof source === 'string' ? source.trim() : '';
@@ -234,7 +285,8 @@ export async function executeCpp(source, options = {}) {
       exePath,
       cwd: tmpDir,
       timeoutMs: compileTimeoutMs,
-      maxOutputBytes
+      maxOutputBytes,
+      abortSignal
     });
     const compileTimeMs = Date.now() - compileStartTime;
 
@@ -262,7 +314,8 @@ export async function executeCpp(source, options = {}) {
       cwd: tmpDir,
       timeoutMs,
       maxOutputBytes,
-      compilerPath: compiler
+      compilerPath: compiler,
+      abortSignal
     });
     const runTimeMs = Date.now() - runStartTime;
 
@@ -324,18 +377,17 @@ export async function executeCpp(source, options = {}) {
 /**
  * Runs the compiler process.
  */
-function runCompilation({ compiler, sourcePath, exePath, cwd, timeoutMs, maxOutputBytes }) {
+function runCompilation({ compiler, sourcePath, exePath, cwd, timeoutMs, maxOutputBytes, abortSignal }) {
   return new Promise((resolve) => {
-    // Safe compiler flags: C++17, optimization, warnings, no ANSI colors for clean parsing
-    const args = ['-std=c++17', '-O2', '-Wall', '-Wextra', '-fdiagnostics-color=never'];
+    // Safe compiler flags: C++17, optimization, warnings, no ANSI colors for clean parsing, no inline asm, pipe
+    const args = ['-std=c++17', '-O2', '-Wall', '-Wextra', '-fdiagnostics-color=never', '-fno-asm', '-pipe'];
     if (process.platform === 'win32') {
       args.push('-static');
     }
     args.push('-o', exePath, sourcePath);
 
     const compilerDir = path.dirname(compiler);
-    const pathSep = process.platform === 'win32' ? ';' : ':';
-    const env = { ...process.env, PATH: compilerDir + pathSep + (process.env.PATH || '') };
+    const env = createCleanEnv(compilerDir);
 
     let stdout = '';
     let stderr = '';
@@ -349,6 +401,24 @@ function runCompilation({ compiler, sourcePath, exePath, cwd, timeoutMs, maxOutp
       windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe']
     });
+
+    if (abortSignal) {
+      abortSignal.addEventListener('abort', async () => {
+        timedOut = true;
+        await killProcessTree(proc.pid);
+        if (!finished) {
+          finished = true;
+          resolve({
+            success: false,
+            timedOut: true,
+            stdout,
+            stderr: stderr + '\nCompilation aborted by client.',
+            exitCode: null,
+            truncated
+          });
+        }
+      });
+    }
 
     const timer = setTimeout(async () => {
       timedOut = true;
@@ -417,7 +487,7 @@ function runCompilation({ compiler, sourcePath, exePath, cwd, timeoutMs, maxOutp
 /**
  * Executes the compiled binary.
  */
-function runExecutable({ exePath, stdin, cwd, timeoutMs, maxOutputBytes, compilerPath }) {
+function runExecutable({ exePath, stdin, cwd, timeoutMs, maxOutputBytes, compilerPath, abortSignal }) {
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
@@ -426,10 +496,7 @@ function runExecutable({ exePath, stdin, cwd, timeoutMs, maxOutputBytes, compile
     let finished = false;
 
     const compilerDir = compilerPath ? path.dirname(compilerPath) : null;
-    const pathSep = process.platform === 'win32' ? ';' : ':';
-    const env = compilerDir
-      ? { ...process.env, PATH: compilerDir + pathSep + (process.env.PATH || '') }
-      : process.env;
+    const env = createCleanEnv(compilerDir);
 
     const proc = spawn(exePath, [], {
       cwd,
@@ -437,6 +504,24 @@ function runExecutable({ exePath, stdin, cwd, timeoutMs, maxOutputBytes, compile
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe']
     });
+
+    if (abortSignal) {
+      abortSignal.addEventListener('abort', async () => {
+        timedOut = true;
+        await killProcessTree(proc.pid);
+        if (!finished) {
+          finished = true;
+          resolve({
+            timedOut: true,
+            stdout,
+            stderr: stderr + '\nExecution aborted by client.',
+            exitCode: null,
+            signal: 'SIGKILL',
+            truncated
+          });
+        }
+      });
+    }
 
     const timer = setTimeout(async () => {
       timedOut = true;

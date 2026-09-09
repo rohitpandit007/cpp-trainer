@@ -13,12 +13,17 @@ import {
   eventBus,
   LEARNING_EVENTS
 } from './learningEngine.js';
+import { companionController, initPikachuCompanion } from './companion/index.js';
+import { ConceptVisualizer } from './visualization/index.js';
+import { GamificationEngine, GamificationUI } from './gamification/index.js';
+import { getUnseenBenchmarkProblem, benchmarkBattery } from './benchmark/index.js';
+import { storageManager } from './storageManager.js';
 
-const app = document.querySelector('#app');
-const rawStored = JSON.parse(localStorage.getItem('codebloom-profile') || '{"completed":[],"topics":{}}');
-const migratedStored = migrateProfile(rawStored);
-
-const savedTheme = localStorage.getItem('codebloom-theme') || (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+const app = typeof document !== 'undefined' ? document.querySelector('#app') : null;
+const migratedStored = storageManager.getProfile();
+const savedTheme = storageManager.getTheme(
+  typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+);
 
 export const applyTheme = (theme) => {
   if (typeof document === 'undefined') return;
@@ -44,12 +49,31 @@ const challengePool = [
   exerciseCatalog['combined-inheritance-virtual']
 ].filter(Boolean);
 
-const getIndependentExercise = (mode) => {
-  if (mode === 'mastery') {
-    return masteryExercises[Math.floor(Math.random() * masteryExercises.length)] || exerciseCatalog['mastery-student-manager'];
+const getCompletedList = () => {
+  try {
+    return state?.profile?.completed || migratedStored?.completed || [];
+  } catch (_e) {
+    return migratedStored?.completed || [];
   }
-  if (mode === 'challenge') return challengePool[Math.floor(Math.random() * challengePool.length)];
-  return practicePool[Math.floor(Math.random() * practicePool.length)];
+};
+
+const selectFromPool = (pool, completedList) => {
+  if (!pool || pool.length === 0) return null;
+  const completed = Array.isArray(completedList) ? completedList : getCompletedList();
+  const unseen = pool.filter(ex => !completed.includes(ex.id));
+  const candidates = unseen.length > 0 ? unseen : pool;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+};
+
+const getIndependentExercise = (mode) => {
+  if (mode === 'benchmark') {
+    return getUnseenBenchmarkProblem(getCompletedList()) || benchmarkBattery[0];
+  }
+  if (mode === 'mastery') {
+    return selectFromPool(masteryExercises) || exerciseCatalog['mastery-student-manager'];
+  }
+  if (mode === 'challenge') return selectFromPool(challengePool);
+  return selectFromPool(practicePool);
 };
 
 const state = {
@@ -70,8 +94,60 @@ const state = {
   exercise: 'mini',
   jumpToWorkspace: false,
   currentIndependentExercise: getIndependentExercise('practice'),
-  currentIsRetrieval: false
+  currentIsRetrieval: false,
+  showVisualizer: false
 };
+
+let visualizer = null;
+if (typeof document !== 'undefined') {
+  visualizer = new ConceptVisualizer({
+    onLoadDemo: (code) => {
+      state.source = code;
+      render();
+      addLessonNavigation();
+    },
+    onClose: () => {
+      state.showVisualizer = false;
+      render();
+      addLessonNavigation();
+    }
+  });
+}
+
+export const gamificationEngine = new GamificationEngine({
+  state: migratedStored.gamification,
+  eventBus,
+  onSave: (gamificationState) => {
+    state.profile.gamification = gamificationState;
+    save();
+  }
+});
+
+// Sync initial level and level name to companion controller
+if (gamificationEngine.state?.level) {
+  companionController.setLevel(gamificationEngine.state.level, gamificationEngine.state.levelName);
+}
+
+
+let gamificationUI = null;
+if (typeof document !== 'undefined') {
+  gamificationUI = new GamificationUI({ engine: gamificationEngine, eventBus });
+
+  // Update header pill in place on progress updates
+  gamificationEngine.subscribe((snapshot) => {
+    const slot = document.querySelector('.progression-pill-slot');
+    if (slot) {
+      slot.innerHTML = GamificationUI.renderHeaderPill(snapshot);
+    }
+  });
+
+  // Transition companion to ultimate mastery on curriculum completion
+  eventBus.on(LEARNING_EVENTS.CURRICULUM_COMPLETED, () => {
+    companionController.transitionTo('ULTIMATE_MASTERY', {
+      sourceEvent: LEARNING_EVENTS.CURRICULUM_COMPLETED
+    });
+  });
+}
 
 const current = () => lessons.find(l => l.id === state.lessonId);
 const currentExercise = () => {
@@ -82,17 +158,23 @@ const currentExercise = () => {
   return null;
 };
 
-const save = () => localStorage.setItem('codebloom-profile', JSON.stringify(state.profile));
+const save = () => {
+  if (gamificationEngine) {
+    state.profile.gamification = gamificationEngine.state;
+  }
+  storageManager.saveProfile(state.profile);
+};
 const esc = value => (value || '').replace(/[&<>]/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[x]));
 
 const sidebar = () => {
   const stats = state.profile.stats || {};
-  return `<aside>
+  return `<aside role="navigation" aria-label="Course and mode navigation">
     <div class="brand"><span>✦</span> CodeBloom <b>C++</b></div>
     <button class="nav ${state.mode === 'course' ? 'active' : ''}" data-action="mode" data-mode="course">▦ &nbsp; Learning path</button>
     <button class="nav ${state.mode === 'practice' ? 'active' : ''}" data-action="mode" data-mode="practice">⌁ &nbsp; Practice lab</button>
     <button class="nav ${state.mode === 'challenge' ? 'active' : ''}" data-action="mode" data-mode="challenge">⚡ &nbsp; Challenge mode</button>
     <button class="nav ${state.mode === 'mastery' ? 'active' : ''}" data-action="mode" data-mode="mastery">🏆 &nbsp; Mastery test</button>
+    <button class="nav ${state.mode === 'benchmark' ? 'active' : ''}" data-action="mode" data-mode="benchmark">🔬 &nbsp; Benchmark</button>
     <div class="divider"></div>
     <p class="overline">YOUR JOURNEY</p>
     <div class="progress-ring"><strong>${state.profile.completed.length}</strong><span>/ 20 lessons</span></div>
@@ -127,8 +209,8 @@ const renderRecommendationBanner = () => {
   `;
 };
 
-const renderConceptMasteryRow = (concepts = []) => {
-  if (!concepts || concepts.length === 0) return '';
+const renderConceptMasteryRow = (concepts = [], hide = false) => {
+  if (hide || !concepts || concepts.length === 0) return '';
   return `
     <div class="concept-mastery-row">
       <span class="concept-row-label">Target Concepts:</span>
@@ -147,10 +229,37 @@ const renderConceptMasteryRow = (concepts = []) => {
   `;
 };
 
-const renderExecutionFeedback = () => {
+export const renderProblemSpecs = (exercise) => {
+  if (!exercise) return '';
+  const hasConstraints = exercise.constraints && exercise.constraints.length > 0;
+  const hasInputFormat = Boolean(exercise.inputFormat);
+  const hasOutputFormat = Boolean(exercise.outputFormat);
+  if (!hasConstraints && !hasInputFormat && !hasOutputFormat) return '';
+
+  return `
+    <div class="problem-specs">
+      ${hasConstraints ? `
+        <div class="spec-group">
+          <span class="spec-label">Constraints</span>
+          <ul class="spec-list">
+            ${exercise.constraints.map(c => `<li>${esc(c)}</li>`).join('')}
+          </ul>
+        </div>
+      ` : ''}
+      ${hasInputFormat || hasOutputFormat ? `
+        <div class="spec-group io-spec">
+          ${hasInputFormat ? `<div><span class="spec-label">Input:</span> <span>${esc(exercise.inputFormat)}</span></div>` : ''}
+          ${hasOutputFormat ? `<div><span class="spec-label">Output:</span> <span>${esc(exercise.outputFormat)}</span></div>` : ''}
+        </div>
+      ` : ''}
+    </div>
+  `;
+};
+
+export const renderExecutionFeedback = () => {
   if (state.executing) {
     return `
-      <div class="feedback running">
+      <div class="feedback running" role="status" aria-label="Program executing">
         <div class="pipeline-flow">
           <div class="pipeline-step ${state.executionStage === 'compiling' ? 'active' : 'completed'}">
             <span class="step-badge">1</span>
@@ -179,7 +288,7 @@ const renderExecutionFeedback = () => {
   const badgeClass = f.badge ? f.badge.toLowerCase().replace(/[^a-z0-9]+/g, '-') : (isSuccess ? 'success' : 'error');
 
   return `
-    <div class="feedback ${f.status}">
+    <div class="feedback ${f.status}" role="region" aria-label="Execution feedback">
       <div class="feedback-head">
         <span class="badge ${badgeClass}">${esc(f.badge || (isSuccess ? 'Success' : 'Check failed'))}</span>
         <b>${esc(f.title || (isSuccess ? 'Looking good' : 'One thing to fix'))}</b>
@@ -193,19 +302,22 @@ const renderExecutionFeedback = () => {
         </div>
       ` : ''}
       ${f.rawError ? `
-        <div class="output-console stderr-console">
-          <div class="console-label">${f.badge === 'Compilation Error' ? 'COMPILER ERROR DETAILS' : 'ERROR OUTPUT (STDERR)'}</div>
+        <details class="raw-console-details" ${!isSuccess ? 'open' : ''}>
+          <summary class="console-label-summary">
+            <span>${f.badge === 'Compilation Error' ? 'COMPILER ERROR DETAILS' : 'ERROR OUTPUT (STDERR)'}</span>
+            <span class="details-chevron">▸ Click to toggle raw compiler output</span>
+          </summary>
           <pre><code>${esc(f.rawError)}</code></pre>
-        </div>
+        </details>
       ` : ''}
     </div>
   `;
 };
 
-const renderAssessmentFeedback = () => {
+export const renderAssessmentFeedback = () => {
   if (state.assessing) {
     return `
-      <div class="feedback running assessing">
+      <div class="feedback running assessing" role="status" aria-label="Assessment running">
         <div class="pipeline-flow">
           <div class="pipeline-step completed">
             <span class="step-badge">1</span>
@@ -234,7 +346,7 @@ const renderAssessmentFeedback = () => {
   const badgeClass = a.badge ? a.badge.toLowerCase().replace(/[^a-z0-9]+/g, '-') : (isSuccess ? 'success' : 'error');
 
   return `
-    <div class="assessment-panel ${a.status}">
+    <div class="assessment-panel ${a.status}" role="region" aria-label="Assessment results">
       <div class="assessment-head">
         <span class="badge ${badgeClass}">${esc(a.badge)}</span>
         <b>${esc(a.title)}</b>
@@ -249,9 +361,9 @@ const renderAssessmentFeedback = () => {
 
       ${a.classifiedError ? `
         <div class="error-diagnosis-card">
-          <div class="diag-header">🔍 ERROR DIAGNOSIS: ${esc(a.classifiedError.category.toUpperCase().replace(/_/g, ' '))}</div>
+          <div class="diag-header">🔍 WHAT TO INSPECT: ${esc(a.classifiedError.category.toUpperCase().replace(/_/g, ' '))}</div>
           <p class="diag-desc">${esc(a.classifiedError.description)}</p>
-          <div class="diag-remedy"><b>Recommended Action:</b> ${esc(a.classifiedError.remedy)}</div>
+          <div class="diag-remedy"><b>Suggested Direction:</b> ${esc(a.classifiedError.remedy)}</div>
         </div>
       ` : ''}
 
@@ -272,12 +384,15 @@ const renderAssessmentFeedback = () => {
 
       ${a.testResults && a.testResults.length > 0 ? `
         <div class="test-suite-summary">
-          <span class="summary-title">Test Results (${a.summary?.passed || 0}/${a.summary?.total || a.testResults.length} Passed)</span>
+          <div class="test-suite-header">
+            <span class="summary-title">Test Results (${a.summary?.passed || 0}/${a.summary?.total || a.testResults.length} Passed)</span>
+            <span class="summary-badge ${a.passed ? 'all-passed' : 'has-failures'}">${a.passed ? 'ALL PASSED' : `${(a.summary?.total || a.testResults.length) - (a.summary?.passed || 0)} FAILED`}</span>
+          </div>
           <div class="test-cases-drawer">
             ${a.testResults.map((tc, idx) => `
               <div class="test-case-card ${tc.passed ? 'passed' : 'failed'}">
                 <div class="tc-top">
-                  <span class="tc-badge ${tc.passed ? 'pass' : 'fail'}">${tc.passed ? 'PASS' : 'FAIL'}</span>
+                  <span class="tc-badge ${tc.passed ? 'pass' : 'fail'}">${tc.passed ? '✓ PASS' : '✗ FAIL'}</span>
                   <span class="tc-name">Test ${idx + 1}: ${esc(tc.description)}</span>
                   ${tc.durationMs ? `<span class="tc-time">${tc.durationMs}ms</span>` : ''}
                 </div>
@@ -297,22 +412,42 @@ const renderAssessmentFeedback = () => {
       ` : ''}
 
       ${a.rawError ? `
-        <div class="output-console stderr-console">
-          <div class="console-label">COMPILER / RUNTIME DETAILS</div>
+        <details class="raw-console-details" ${!isSuccess && !a.classifiedError ? 'open' : ''}>
+          <summary class="console-label-summary">
+            <span>COMPILER / RUNTIME DETAILS</span>
+            <span class="details-chevron">▸ Click to toggle raw diagnostics</span>
+          </summary>
           <pre><code>${esc(a.rawError)}</code></pre>
-        </div>
+        </details>
       ` : ''}
     </div>
   `;
 };
 
-const renderTestPreview = (exercise) => {
+export const renderFeedbackSlot = () => {
+  if (state.executing) return renderExecutionFeedback();
+  if (state.assessing) return renderAssessmentFeedback();
+  if (state.assessmentFeedback) return renderAssessmentFeedback();
+  if (state.feedback) return renderExecutionFeedback();
+
+  return `
+    <div class="feedback-empty-state" role="status" aria-label="Execution feedback ready">
+      <div class="empty-state-icon">💡</div>
+      <div class="empty-state-text">
+        <strong>Ready to run your code</strong>
+        <p>Click <b>▷ Run Code</b> to compile and test output, or <b>✓ Submit Assessment</b> to grade against test cases.</p>
+      </div>
+    </div>
+  `;
+};
+
+export const renderTestPreview = (exercise) => {
   if (!exercise || !exercise.testCases) return '';
   const visible = exercise.testCases.filter(t => !t.isHidden);
   if (visible.length === 0) return '';
 
   return `
-    <div class="visible-tests-preview">
+    <div class="visible-tests-preview" role="region" aria-label="Sample test cases">
       <span class="preview-title">Sample Test Cases (${visible.length} visible, ${exercise.testCases.length - visible.length} hidden)</span>
       <div class="sample-test-list">
         ${visible.map((t, idx) => `
@@ -397,27 +532,30 @@ const workspace = () => {
       <section class="code-zone">
         <div class="editor-top">
           <span><i></i> main.cpp</span>
-          <button data-action="reset">Reset example</button>
+          <button data-action="reset" aria-label="Reset starter code" title="Reset code to starter template">Reset example</button>
         </div>
-        <textarea spellcheck="false" data-source>${esc(state.source)}</textarea>
+        <textarea spellcheck="false" data-source aria-label="C++ Code Editor">${esc(state.source)}</textarea>
         ${state.showStdin ? `
           <div class="stdin-box">
             <div class="stdin-label">Standard Input (stdin for cin)</div>
-            <textarea data-stdin placeholder="Values to pass to cin (space or newline separated)...">${esc(state.stdin)}</textarea>
+            <textarea data-stdin aria-label="Standard input console" placeholder="Values to pass to cin (space or newline separated)...">${esc(state.stdin)}</textarea>
           </div>
         ` : ''}
         <div class="editor-actions">
           <div class="action-left">
-            <button class="hint" data-action="hint">${state.hintIndex === 0 ? 'Need a hint?' : state.hintIndex < (ex?.hints?.length || 3) ? `Next hint (${state.hintIndex}/${ex?.hints?.length || 3})` : 'All hints shown'}</button>
-            <button class="stdin-toggle ${state.showStdin ? 'active' : ''}" data-action="toggle-stdin">${state.showStdin ? 'Hide stdin ✕' : 'Add stdin ⌨'}</button>
+            <button class="visualize-btn ${state.showVisualizer ? 'active' : ''}" data-action="visualize" aria-label="Toggle Concept Visualizer" title="Visualize C++ concepts in action">🔍 Visualize</button>
+            <button class="hint" data-action="hint" aria-label="Request progressive hint">${state.hintIndex === 0 ? 'Need a hint?' : state.hintIndex < (ex?.hints?.length || 3) ? `Next hint (${state.hintIndex}/${ex?.hints?.length || 3})` : 'All hints shown'}</button>
+            <button class="stdin-toggle ${state.showStdin ? 'active' : ''}" data-action="toggle-stdin" aria-label="Toggle standard input">${state.showStdin ? 'Hide stdin ✕' : 'Add stdin ⌨'}</button>
           </div>
           <div class="action-right">
-            <button class="run ${state.executing ? 'running' : ''}" data-action="run" ${state.executing || state.assessing ? 'disabled' : ''}>${state.executing ? '⏳ Running...' : '▷ Run Code'}</button>
-            <button class="submit-assess ${state.assessing ? 'running' : ''}" data-action="submit-assess" ${state.executing || state.assessing ? 'disabled' : ''}>${state.assessing ? '⚡ Grading...' : '✓ Submit Assessment'}</button>
+            <button class="run ${state.executing ? 'running' : ''}" data-action="run" aria-label="Run Code" ${state.executing || state.assessing ? 'disabled' : ''}>${state.executing ? '⏳ Running...' : '▷ Run Code'}</button>
+            <button class="submit-assess ${state.assessing ? 'running' : ''}" data-action="submit-assess" aria-label="Submit Assessment" ${state.executing || state.assessing ? 'disabled' : ''}>${state.assessing ? '⚡ Grading...' : '✓ Submit Assessment'}</button>
           </div>
         </div>
-        ${renderExecutionFeedback()}
-        ${renderAssessmentFeedback()}
+        <div id="concept-visualizer-slot"></div>
+        <div class="feedback-container" aria-live="polite" aria-atomic="true">
+          ${renderFeedbackSlot()}
+        </div>
       </section>
     </div>
     <section class="exercise">
@@ -427,8 +565,9 @@ const workspace = () => {
           ${ex?.level ? `<span class="level-badge">Level ${ex.level}: ${ex.level === 1 ? 'Fill-in' : ex.level === 2 ? 'Function' : ex.level === 3 ? 'Class' : ex.level === 4 ? 'Scaffolded' : 'Independent'}</span>` : ''}
         </div>
         <h3>${ex?.title || (state.exercise === 'mini' ? 'Easy Win' : state.exercise === 'medium' ? 'Build It Up' : 'Independent Build')}</h3>
-        ${renderConceptMasteryRow(ex?.concepts)}
+        ${renderConceptMasteryRow(ex?.concepts, Boolean(ex?.isIndependent))}
         <p>${prompt}</p>
+        ${renderProblemSpecs(ex)}
         ${renderTestPreview(ex)}
         ${renderProgressiveHints(ex)}
       </div>
@@ -442,63 +581,82 @@ const workspace = () => {
 };
 
 const independent = (type) => {
+  const isBenchmark = type === 'benchmark';
   const ex = state.currentIndependentExercise || getIndependentExercise(type);
   const question = ex ? ex.problemStatement : (type === 'mastery' ? mastery[0] : lessons[0].hard);
 
   return `<main class="independent">
-    <div class="eyebrow">${type === 'mastery' ? 'C++ PROGRAMMING MASTERY TEST' : type === 'challenge' ? 'CHALLENGE MODE' : 'PRACTICE LAB'}</div>
-    <h1>${type === 'mastery' ? 'No hints. Just your craft.' : type === 'challenge' ? 'Solve it from the question.' : 'A fresh question is waiting.'}</h1>
+    <div class="eyebrow">${isBenchmark ? 'INDEPENDENT CODING PROFICIENCY BENCHMARK' : type === 'mastery' ? 'C++ PROGRAMMING MASTERY TEST' : type === 'challenge' ? 'CHALLENGE MODE' : 'PRACTICE LAB'}</div>
+    <h1>${isBenchmark ? 'Unseen transfer evaluation. No hints, no templates.' : type === 'mastery' ? 'No hints. Just your craft.' : type === 'challenge' ? 'Solve it from the question.' : 'A fresh question is waiting.'}</h1>
     ${renderRecommendationBanner()}
     <article class="problem">
       <div class="problem-meta-top">
-        <span>PROGRAMMING QUESTION</span>
+        <span>${isBenchmark ? 'UNSEEN TRANSFER CHALLENGE' : 'PROGRAMMING QUESTION'}</span>
         ${ex?.level ? `<span class="level-badge">Level ${ex.level}</span>` : ''}
       </div>
       <h3>${ex?.title || question}</h3>
-      ${renderConceptMasteryRow(ex?.concepts)}
+      ${renderConceptMasteryRow(ex?.concepts, true)}
       <p>${question}</p>
+      ${renderProblemSpecs(ex)}
       ${renderTestPreview(ex)}
-      ${type !== 'mastery' ? renderProgressiveHints(ex) : ''}
+      ${type !== 'mastery' && !isBenchmark ? renderProgressiveHints(ex) : ''}
     </article>
     <div class="independent-editor">
       <div class="editor-top">
         <span><i></i> solution.cpp</span>
-        <button data-action="new-question">New question ↻</button>
+        <button data-action="new-question" aria-label="Load a fresh question" title="Load a new random question">New question ↻</button>
       </div>
-      <textarea data-source spellcheck="false">${esc(state.source)}</textarea>
+      <textarea data-source spellcheck="false" aria-label="C++ Solution Editor">${esc(state.source)}</textarea>
       ${state.showStdin ? `
         <div class="stdin-box">
           <div class="stdin-label">Standard Input (stdin for cin)</div>
-          <textarea data-stdin placeholder="Values to pass to cin...">${esc(state.stdin)}</textarea>
+          <textarea data-stdin aria-label="Standard input console" placeholder="Values to pass to cin...">${esc(state.stdin)}</textarea>
         </div>
       ` : ''}
       <div class="editor-actions">
         <div class="action-left">
-          ${type !== 'mastery' ? `
-            <button class="hint" data-action="hint">${state.hintIndex === 0 ? 'Need a hint?' : state.hintIndex < (ex?.hints?.length || 3) ? `Next hint (${state.hintIndex}/${ex?.hints?.length || 3})` : 'All hints shown'}</button>
-          ` : '<span class="mastery-no-hint-tag">🔒 No hints in mastery</span>'}
-          <button class="stdin-toggle ${state.showStdin ? 'active' : ''}" data-action="toggle-stdin">${state.showStdin ? 'Hide stdin ✕' : 'Add stdin ⌨'}</button>
+          <button class="visualize-btn ${state.showVisualizer ? 'active' : ''}" data-action="visualize" aria-label="Toggle Concept Visualizer" title="Visualize C++ concepts in action">🔍 Visualize</button>
+          ${type !== 'mastery' && !isBenchmark ? `
+            <button class="hint" data-action="hint" aria-label="Request progressive hint">${state.hintIndex === 0 ? 'Need a hint?' : state.hintIndex < (ex?.hints?.length || 3) ? `Next hint (${state.hintIndex}/${ex?.hints?.length || 3})` : 'All hints shown'}</button>
+          ` : isBenchmark ? '<span class="mastery-no-hint-tag">🔒 No hints in benchmark</span>' : '<span class="mastery-no-hint-tag">🔒 No hints in mastery</span>'}
+          <button class="stdin-toggle ${state.showStdin ? 'active' : ''}" data-action="toggle-stdin" aria-label="Toggle standard input">${state.showStdin ? 'Hide stdin ✕' : 'Add stdin ⌨'}</button>
         </div>
         <div class="action-right">
-          <button class="run ${state.executing ? 'running' : ''}" data-action="run" ${state.executing || state.assessing ? 'disabled' : ''}>${state.executing ? '⏳ Running...' : '▷ Run Code'}</button>
-          <button class="submit-assess ${state.assessing ? 'running' : ''}" data-action="submit-assess" ${state.executing || state.assessing ? 'disabled' : ''}>${state.assessing ? '⚡ Grading...' : '✓ Submit Assessment'}</button>
+          <button class="run ${state.executing ? 'running' : ''}" data-action="run" aria-label="Run Code" ${state.executing || state.assessing ? 'disabled' : ''}>${state.executing ? '⏳ Running...' : '▷ Run Code'}</button>
+          <button class="submit-assess ${state.assessing ? 'running' : ''}" data-action="submit-assess" aria-label="Submit Assessment" ${state.executing || state.assessing ? 'disabled' : ''}>${state.assessing ? '⚡ Grading...' : '✓ Submit Assessment'}</button>
         </div>
       </div>
-      ${renderExecutionFeedback()}
-      ${renderAssessmentFeedback()}
+      <div id="concept-visualizer-slot"></div>
+      <div class="feedback-container" aria-live="polite" aria-atomic="true">
+        ${renderFeedbackSlot()}
+      </div>
     </div>
   </main>`;
 };
 
 const render = () => {
-  app.innerHTML = `<div class="shell">${sidebar()}<div class="content"><header><div>${state.mode === 'course' ? 'Good to see you, coder.' : state.mode === 'mastery' ? 'Final assessment' : 'Keep your hands on the keyboard.'}</div><div class="header-right"><button class="theme-toggle-btn" data-action="toggle-theme" title="Toggle night mode">${state.theme === 'dark' ? '☀️ Light' : '🌙 Night'}</button><span>🔥 ${(state.profile.stats?.passedSubmissions || state.profile.completed.length) * 3} XP</span><span class="avatar">R</span></div></header>${state.mode === 'course' ? `<div class="course">${map()}${lessonList()}${workspace()}</div>` : independent(state.mode)}</div></div>`;
+  if (!app) return;
+  const gamificationPillHtml = gamificationEngine ? GamificationUI.renderHeaderPill(gamificationEngine.getSnapshot()) : '';
+  app.innerHTML = `<div class="shell">${sidebar()}<div class="content"><header role="banner"><div>${state.mode === 'course' ? 'Good to see you, coder.' : state.mode === 'benchmark' ? 'Independent proficiency benchmark' : state.mode === 'mastery' ? 'Final assessment' : 'Keep your hands on the keyboard.'}</div><div class="header-right"><div class="progression-pill-slot">${gamificationPillHtml}</div><button class="theme-toggle-btn" data-action="toggle-theme" title="Toggle night mode">${state.theme === 'dark' ? '☀️ Light' : '🌙 Night'}</button><span class="avatar">R</span></div></header>${state.mode === 'course' ? `<div class="course">${map()}${lessonList()}${workspace()}</div>` : independent(state.mode)}</div></div>`;
   if (state.jumpToWorkspace) {
     state.jumpToWorkspace = false;
     scrollToLearningWorkspace(app);
   }
+  if (visualizer) {
+    const slot = app.querySelector('#concept-visualizer-slot');
+    if (slot) {
+      visualizer.mount(slot);
+      if (state.showVisualizer) {
+        visualizer.show();
+      } else {
+        visualizer.hide(false);
+      }
+    }
+  }
 };
 
 const addLessonNavigation = () => {
+  if (!app) return;
   const workspaceElement = app.querySelector('.workspace');
   if (!workspaceElement) return;
   const adjacent = getAdjacentLessonIds(lessons.map(lesson => lesson.id), state.lessonId);
@@ -509,8 +667,12 @@ const addLessonNavigation = () => {
   workspaceElement.append(navigation);
 };
 
+if (app) {
 app.addEventListener('input', e => {
-  if (e.target.matches('[data-source]')) state.source = e.target.value;
+  if (e.target.matches('[data-source]')) {
+    state.source = e.target.value;
+    companionController.notifyTyping();
+  }
   if (e.target.matches('[data-stdin]')) state.stdin = e.target.value;
 });
 
@@ -530,6 +692,23 @@ app.addEventListener('click', async e => {
     return;
   }
 
+  if (action === 'open-achievements') {
+    if (gamificationUI) {
+      gamificationUI.openModal();
+    }
+    return;
+  }
+
+  if (action === 'visualize') {
+    state.showVisualizer = !state.showVisualizer;
+    render();
+    addLessonNavigation();
+    if (state.showVisualizer && visualizer) {
+      visualizer.loadSource(state.source, current()?.id);
+    }
+    return;
+  }
+
   if (action === 'lesson') {
     state.lessonId = el.dataset.id;
     state.source = current().example;
@@ -540,6 +719,9 @@ app.addEventListener('click', async e => {
     state.mode = 'course';
     render();
     addLessonNavigation();
+    if (state.showVisualizer && visualizer) {
+      visualizer.loadSource(state.source, state.lessonId);
+    }
     return;
   }
 
@@ -556,6 +738,9 @@ app.addEventListener('click', async e => {
       state.jumpToWorkspace = true;
       render();
       addLessonNavigation();
+      if (state.showVisualizer && visualizer) {
+        visualizer.loadSource(state.source, state.lessonId);
+      }
     }
     return;
   }
@@ -662,6 +847,9 @@ app.addEventListener('click', async e => {
     state.showSolution = false;
     render();
     addLessonNavigation();
+    if (state.showVisualizer && visualizer) {
+      visualizer.loadSource(state.source, current()?.id);
+    }
     return;
   }
 
@@ -675,6 +863,9 @@ app.addEventListener('click', async e => {
     state.showSolution = false;
     render();
     addLessonNavigation();
+    if (state.showVisualizer && visualizer) {
+      visualizer.loadSource(state.source, state.currentIndependentExercise?.id);
+    }
     return;
   }
 
@@ -718,6 +909,11 @@ app.addEventListener('click', async e => {
         eventBus.emit(LEARNING_EVENTS.COMPILE_FAILED, { diagnostics: execResult.diagnostics });
       } else if (execResult.status === 'runtime_error' || execResult.status === 'timeout') {
         eventBus.emit(LEARNING_EVENTS.RUNTIME_FAILED, { exitCode: execResult.exitCode });
+      } else if (execResult.status === 'success') {
+        eventBus.emit(LEARNING_EVENTS.COMPILE_SUCCESS, { exerciseId: current()?.id });
+        if (state.showVisualizer && visualizer) {
+          visualizer.loadSource(state.source, current()?.id);
+        }
       }
     } catch (err) {
       clearTimeout(stageTimer);
@@ -772,25 +968,60 @@ app.addEventListener('click', async e => {
       state.assessmentFeedback = formatAssessmentFeedback(assessmentResult, curEx);
 
       if (state.assessmentFeedback.passed) {
-        eventBus.emit(LEARNING_EVENTS.TEST_PASSED, { exerciseId: curEx?.id });
-        eventBus.emit(LEARNING_EVENTS.EXERCISE_COMPLETED, { exerciseId: curEx?.id });
-      } else {
-        eventBus.emit(LEARNING_EVENTS.TEST_FAILED, {
-          exerciseId: curEx?.id,
-          classifiedError: state.assessmentFeedback.classifiedError
+        // Update learner profile and mastery records first
+        state.profile = updateLearnerProfile(state.profile, current()?.id || 'general', true, {
+          exercise: curEx,
+          assessmentResult,
+          hintsUsedCount: state.hintIndex,
+          solutionRevealed: state.showSolution,
+          isIndependent: Boolean(curEx?.isIndependent) || (state.mode === 'mastery' && curEx?.level >= 5) || (state.mode === 'benchmark'),
+          isRetrieval: state.currentIsRetrieval || false
         });
-      }
 
-      // Update learner profile and mastery records
-      state.profile = updateLearnerProfile(state.profile, current()?.id || 'general', state.assessmentFeedback.passed, {
-        exercise: curEx,
-        assessmentResult,
-        hintsUsedCount: state.hintIndex,
-        solutionRevealed: state.showSolution,
-        isIndependent: state.mode !== 'course' || curEx?.level >= 4,
-        isRetrieval: state.currentIsRetrieval || false
-      });
-      save();
+        eventBus.emit(LEARNING_EVENTS.TEST_PASSED, { exerciseId: curEx?.id });
+        eventBus.emit(LEARNING_EVENTS.EXERCISE_COMPLETED, {
+          exerciseId: curEx?.id,
+          exercise: curEx,
+          difficulty: curEx?.difficulty || (state.mode === 'mastery' ? 'mastery' : 'easy'),
+          concepts: curEx?.concepts || (curEx?.concept ? [curEx.concept] : []),
+          hintsUsed: state.hintIndex,
+          solutionRevealed: state.showSolution,
+          mode: state.mode,
+          completedLessons: state.profile.completed,
+          totalLessonsCompleted: state.profile.completed.length,
+          conceptMastery: state.profile.conceptMastery
+        });
+        save();
+      } else {
+        if (assessmentResult.status === 'compile_error') {
+          eventBus.emit(LEARNING_EVENTS.COMPILE_FAILED, {
+            exerciseId: curEx?.id,
+            classifiedError: state.assessmentFeedback.classifiedError,
+            rawError: assessmentResult.rawError
+          });
+        } else if (assessmentResult.status === 'runtime_error' || assessmentResult.status === 'timeout') {
+          eventBus.emit(LEARNING_EVENTS.RUNTIME_FAILED, {
+            exerciseId: curEx?.id,
+            classifiedError: state.assessmentFeedback.classifiedError,
+            rawError: assessmentResult.rawError
+          });
+        } else {
+          eventBus.emit(LEARNING_EVENTS.TEST_FAILED, {
+            exerciseId: curEx?.id,
+            classifiedError: state.assessmentFeedback.classifiedError
+          });
+        }
+
+        state.profile = updateLearnerProfile(state.profile, current()?.id || 'general', false, {
+          exercise: curEx,
+          assessmentResult,
+          hintsUsedCount: state.hintIndex,
+          solutionRevealed: state.showSolution,
+          isIndependent: Boolean(curEx?.isIndependent) || (state.mode === 'mastery' && curEx?.level >= 5) || (state.mode === 'benchmark'),
+          isRetrieval: state.currentIsRetrieval || false
+        });
+        save();
+      }
 
     } catch (err) {
       state.assessmentFeedback = {
@@ -811,9 +1042,13 @@ app.addEventListener('click', async e => {
     return;
   }
 });
+}
 
 const starterTemplate = `#include <iostream>\nusing namespace std;\n\nint main() {\n  cout << "Hello, C++!";\n  return 0;\n}`;
 
-applyTheme(state.theme);
-render();
-addLessonNavigation();
+if (typeof document !== 'undefined' && app) {
+  applyTheme(state.theme);
+  render();
+  addLessonNavigation();
+  initPikachuCompanion(document.body, companionController);
+}

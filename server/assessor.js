@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
-import { findCompiler, parseCompilerDiagnostics, generateFriendlyExplanation, killProcessTree } from './executor.js';
+import { findCompiler, parseCompilerDiagnostics, generateFriendlyExplanation, killProcessTree, createCleanEnv } from './executor.js';
 import { spawn } from 'node:child_process';
 import { getExerciseById } from '../src/exerciseData.js';
 
@@ -366,15 +366,14 @@ export async function assessSubmission(source, exerciseOrId, options = {}) {
  */
 function compileSource({ compiler, sourcePath, exePath, cwd, timeoutMs, maxOutputBytes }) {
   return new Promise((resolve) => {
-    const args = ['-std=c++17', '-O2', '-Wall', '-Wextra', '-fdiagnostics-color=never'];
+    const args = ['-std=c++17', '-O2', '-Wall', '-Wextra', '-fdiagnostics-color=never', '-fno-asm', '-pipe'];
     if (process.platform === 'win32') {
       args.push('-static');
     }
     args.push('-o', exePath, sourcePath);
 
     const compilerDir = path.dirname(compiler);
-    const pathSep = process.platform === 'win32' ? ';' : ':';
-    const env = { ...process.env, PATH: compilerDir + pathSep + (process.env.PATH || '') };
+    const env = createCleanEnv(compilerDir);
 
     let stdout = '';
     let stderr = '';
@@ -439,10 +438,7 @@ function runBinary({ exePath, stdin, cwd, timeoutMs, maxOutputBytes, compilerPat
     let finished = false;
 
     const compilerDir = compilerPath ? path.dirname(compilerPath) : null;
-    const pathSep = process.platform === 'win32' ? ';' : ':';
-    const env = compilerDir
-      ? { ...process.env, PATH: compilerDir + pathSep + (process.env.PATH || '') }
-      : process.env;
+    const env = createCleanEnv(compilerDir);
 
     const startTime = Date.now();
     const proc = spawn(exePath, [], { cwd, env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });

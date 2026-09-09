@@ -6,6 +6,7 @@
 
 export const LEARNING_EVENTS = {
   CODE_STARTED: 'CODE_STARTED',
+  COMPILE_SUCCESS: 'COMPILE_SUCCESS',
   COMPILE_FAILED: 'COMPILE_FAILED',
   RUNTIME_FAILED: 'RUNTIME_FAILED',
   TEST_FAILED: 'TEST_FAILED',
@@ -16,10 +17,17 @@ export const LEARNING_EVENTS = {
   CONCEPT_IMPROVED: 'CONCEPT_IMPROVED',
   CONCEPT_MASTERED: 'CONCEPT_MASTERED',
   DIFFICULTY_INCREASED: 'DIFFICULTY_INCREASED',
-  DIFFICULTY_DECREASED: 'DIFFICULTY_DECREASED'
+  DIFFICULTY_DECREASED: 'DIFFICULTY_DECREASED',
+
+  // Phase D4A Progression & Gamification Events
+  XP_EARNED: 'XP_EARNED',
+  LEVEL_UP: 'LEVEL_UP',
+  ACHIEVEMENT_UNLOCKED: 'ACHIEVEMENT_UNLOCKED',
+  INDEPENDENT_SUCCESS: 'INDEPENDENT_SUCCESS',
+  CURRICULUM_COMPLETED: 'CURRICULUM_COMPLETED'
 };
 
-class LearningEventBus {
+export class LearningEventBus {
   constructor() {
     this.listeners = new Map();
   }
@@ -82,6 +90,20 @@ class LearningEventBus {
       }
     }
     return payload;
+  }
+
+  /**
+   * Returns the count of active listeners for a specific event or overall.
+   */
+  listenerCount(eventName) {
+    if (eventName) {
+      return this.listeners.get(eventName)?.size || 0;
+    }
+    let total = 0;
+    for (const set of this.listeners.values()) {
+      total += set.size;
+    }
+    return total;
   }
 
   /**

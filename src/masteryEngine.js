@@ -596,52 +596,109 @@ export function getAdaptiveRecommendation(profile, currentLessonId, exerciseCata
 }
 
 /**
+ * Validates whether a profile adheres to canonical Schema Version 3.
+ */
+export function validateProfileSchema(profile) {
+  if (!profile || typeof profile !== 'object') return false;
+  if (typeof profile.version !== 'number' || profile.version < 3) return false;
+  if (!Array.isArray(profile.completed)) return false;
+  if (!profile.topics || typeof profile.topics !== 'object') return false;
+  if (!profile.conceptMastery || typeof profile.conceptMastery !== 'object') return false;
+  if (!Array.isArray(profile.recentMistakes)) return false;
+  if (!Array.isArray(profile.retrievalQueue)) return false;
+  if (!Array.isArray(profile.history)) return false;
+  if (!profile.stats || typeof profile.stats !== 'object') return false;
+  return true;
+}
+
+/**
  * Migrates a legacy learner profile (Phase A/B or v1/v2) to Schema Version 3.
- * Preserves all completed lessons and topic wins/misses without data loss.
+ * Preserves all completed lessons and topic wins/misses without data loss,
+ * and defensively repairs corrupted, missing, or malformed fields.
  */
 export function migrateProfile(rawProfile) {
   const profile = rawProfile && typeof rawProfile === 'object' ? rawProfile : {};
 
-  // If already version 3, return safely
-  if (profile.version === 3 && profile.conceptMastery) {
+  // If already a valid Version 3 profile, preserve object reference idempotently
+  if (profile.version === 3 && profile.conceptMastery && typeof profile.conceptMastery === 'object' && validateProfileSchema(profile)) {
     return profile;
   }
 
   const completed = Array.isArray(profile.completed) ? [...profile.completed] : [];
   const topics = profile.topics && typeof profile.topics === 'object' ? { ...profile.topics } : {};
-  const conceptMastery = {};
+  let conceptMastery = profile.conceptMastery && typeof profile.conceptMastery === 'object'
+    ? { ...profile.conceptMastery }
+    : {};
 
-  // Seed concept mastery from existing topic wins
-  for (const [topicId, data] of Object.entries(topics)) {
-    const wins = data.wins || 0;
-    const misses = data.misses || 0;
-    const concept = createConceptMastery(topicId);
-    concept.attempts = wins + misses;
-    concept.successfulAttempts = wins;
-    concept.failedAttempts = misses;
-    concept.difficultyAttempted = { easy: wins + misses, medium: 0, hard: 0 };
-    concept.difficultySuccessfullyCompleted = { easy: wins, medium: 0, hard: 0 };
-    concept.recentPerformance = Array(Math.min(wins, 5)).fill('pass');
+  // If no concept mastery exists yet, seed from existing topic wins
+  if (Object.keys(conceptMastery).length === 0) {
+    for (const [topicId, data] of Object.entries(topics)) {
+      const wins = typeof data?.wins === 'number' ? data.wins : 0;
+      const misses = typeof data?.misses === 'number' ? data.misses : 0;
+      const concept = createConceptMastery(topicId);
+      concept.attempts = wins + misses;
+      concept.successfulAttempts = wins;
+      concept.failedAttempts = misses;
+      concept.difficultyAttempted = { easy: wins + misses, medium: 0, hard: 0 };
+      concept.difficultySuccessfullyCompleted = { easy: wins, medium: 0, hard: 0 };
+      concept.recentPerformance = Array(Math.min(wins, 5)).fill('pass');
 
-    const evalResult = calculateMasteryLevel(concept);
-    concept.level = evalResult.level;
-    concept.levelName = evalResult.levelName;
-    conceptMastery[topicId] = concept;
+      const evalResult = calculateMasteryLevel(concept);
+      concept.level = evalResult.level;
+      concept.levelName = evalResult.levelName;
+      conceptMastery[topicId] = concept;
+    }
+  } else {
+    // Defensively repair existing concept records
+    for (const [topicId, c] of Object.entries(conceptMastery)) {
+      if (!c || typeof c !== 'object') {
+        conceptMastery[topicId] = createConceptMastery(topicId);
+      } else {
+        c.attempts = Number.isFinite(c.attempts) && c.attempts >= 0 ? c.attempts : 0;
+        c.successfulAttempts = Number.isFinite(c.successfulAttempts) && c.successfulAttempts >= 0 ? c.successfulAttempts : 0;
+        c.failedAttempts = Number.isFinite(c.failedAttempts) && c.failedAttempts >= 0 ? c.failedAttempts : 0;
+        c.level = Number.isInteger(c.level) && c.level >= 1 && c.level <= 6 ? c.level : 1;
+        c.levelName = MASTERY_LEVELS[c.level] || MASTERY_LEVELS[1];
+        c.recentPerformance = Array.isArray(c.recentPerformance) ? c.recentPerformance.slice(-10) : [];
+      }
+    }
   }
 
-  return {
+  const recentMistakes = Array.isArray(profile.recentMistakes) ? [...profile.recentMistakes] : [];
+  const retrievalQueue = Array.isArray(profile.retrievalQueue) ? [...profile.retrievalQueue] : [];
+  const history = Array.isArray(profile.history) ? [...profile.history] : [];
+  const rawStats = profile.stats && typeof profile.stats === 'object' ? profile.stats : {};
+
+  const stats = {
+    totalSubmissions: typeof rawStats.totalSubmissions === 'number' ? rawStats.totalSubmissions : completed.length * 2,
+    passedSubmissions: typeof rawStats.passedSubmissions === 'number' ? rawStats.passedSubmissions : completed.length,
+    hintsRevealed: typeof rawStats.hintsRevealed === 'number' ? rawStats.hintsRevealed : 0,
+    solutionsRevealed: typeof rawStats.solutionsRevealed === 'number' ? rawStats.solutionsRevealed : 0
+  };
+
+  const gamification = profile.gamification && typeof profile.gamification === 'object' ? profile.gamification : undefined;
+
+  const result = {
     version: 3,
     completed,
     topics,
     conceptMastery,
-    recentMistakes: [],
-    retrievalQueue: [],
-    history: [],
-    stats: {
-      totalSubmissions: completed.length * 2,
-      passedSubmissions: completed.length,
-      hintsRevealed: 0,
-      solutionsRevealed: 0
-    }
+    recentMistakes,
+    retrievalQueue,
+    history,
+    stats
   };
+
+  if (gamification) {
+    result.gamification = gamification;
+  }
+
+  return result;
+}
+
+/**
+ * Creates an empty, canonical Version 3 learner profile.
+ */
+export function createDefaultProfile() {
+  return migrateProfile({});
 }

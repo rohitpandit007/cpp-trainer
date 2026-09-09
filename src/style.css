@@ -1005,5 +1005,358 @@ body.dark-mode .lesson-navigation button:hover:not(:disabled) {
   background: #24344b;
 }
 
+/* ==========================================================================
+   Phase D4C Workspace Polish, Accessibility & Responsive Styles
+   ========================================================================== */
 
+/* Accessible High-Contrast Focus Visible Ring */
+button:focus-visible,
+textarea:focus-visible,
+input:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #2b956e !important;
+  outline-offset: 2px !important;
+}
 
+body.dark-mode button:focus-visible,
+body.dark-mode textarea:focus-visible,
+body.dark-mode input:focus-visible,
+body.dark-mode a:focus-visible,
+body.dark-mode [tabindex]:focus-visible {
+  outline: 2px solid #38bdf8 !important;
+  outline-offset: 2px !important;
+}
+
+/* Feedback Container & Empty State */
+.feedback-container {
+  width: 100%;
+}
+
+.feedback-empty-state {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  background: #192a2d;
+  border-top: 1px solid #263e41;
+  color: #a4c4bb;
+  font-size: 13px;
+}
+
+.empty-state-icon {
+  font-size: 22px;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.empty-state-text strong {
+  display: block;
+  color: #e3f2e9;
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+
+.empty-state-text p {
+  margin: 0;
+  color: #8fa8a2;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.empty-state-text b,
+.empty-state-text strong {
+  color: #b9e3d5;
+}
+
+/* Problem Specifications Block */
+.problem-specs {
+  margin: 14px 0 10px;
+  padding: 12px 16px;
+  background: #f0f7f4;
+  border: 1px solid #d2e5dd;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.spec-group {
+  margin-bottom: 8px;
+}
+
+.spec-group:last-child {
+  margin-bottom: 0;
+}
+
+.spec-label {
+  font: 700 10px 'DM Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #2e6657;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.spec-list {
+  margin: 4px 0 0 18px;
+  padding: 0;
+  color: #49635d;
+  line-height: 1.5;
+}
+
+.io-spec {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #49635d;
+}
+
+.io-spec span:last-child {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+}
+
+body.dark-mode .problem-specs {
+  background: #102422;
+  border-color: #1e3d36;
+}
+
+body.dark-mode .spec-label {
+  color: #5eead4;
+}
+
+body.dark-mode .spec-list,
+body.dark-mode .io-spec {
+  color: #94a3b8;
+}
+
+/* Collapsible Raw Diagnostics (<details>) */
+.raw-console-details {
+  margin-top: 12px;
+  border-radius: 6px;
+  border: 1px solid #3d2424;
+  background: #180e0e;
+  overflow: hidden;
+}
+
+.raw-console-details summary {
+  padding: 8px 12px;
+  background: #281717;
+  color: #e59797;
+  font: 600 10px 'DM Mono', monospace;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.2s ease;
+  list-style: none;
+}
+
+.raw-console-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.raw-console-details summary:hover {
+  background: #331d1d;
+  color: #f7a8a8;
+}
+
+.details-chevron {
+  font-size: 9px;
+  color: #b07070;
+}
+
+.raw-console-details[open] .details-chevron {
+  color: #f2a0a0;
+}
+
+.raw-console-details pre {
+  margin: 0;
+  padding: 12px 14px;
+  font: 12px/1.5 'DM Mono', monospace;
+  color: #fca5a5;
+  background: #140b0b;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Test Suite Summary Header & Enhanced Cards */
+.test-suite-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.summary-badge {
+  font: 700 9px 'DM Mono', monospace;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.summary-badge.all-passed {
+  background: #14532d;
+  color: #dcfce7;
+}
+
+.summary-badge.has-failures {
+  background: #7f1d1d;
+  color: #fee2e2;
+}
+
+.test-case-card {
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border: 1px solid #334e4a;
+  background: #101c1e;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.test-case-card.passed {
+  border-left: 4px solid #10b981;
+}
+
+.test-case-card.failed {
+  border-left: 4px solid #ef4444;
+}
+
+.test-case-card .tc-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #18282b;
+  font-size: 12px;
+}
+
+.test-case-card .tc-badge {
+  font: 700 9px 'DM Mono', monospace;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.test-case-card .tc-badge.pass {
+  background: #065f46;
+  color: #a7f3d0;
+}
+
+.test-case-card .tc-badge.fail {
+  background: #991b1b;
+  color: #fecaca;
+}
+
+.tc-hidden-note {
+  padding: 8px 12px;
+  font: 11px 'DM Sans', sans-serif;
+  color: #94a3b8;
+  font-style: italic;
+  background: #121e20;
+}
+
+/* Viewport Polish & Mobile Responsiveness */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+@media (max-width: 900px) {
+  .lesson-body {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .editor-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .action-left, .action-right {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .action-right {
+    justify-content: flex-end;
+    margin-top: 6px;
+  }
+}
+
+@media (max-width: 600px) {
+  .editor-actions button {
+    min-height: 40px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .action-right {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .action-right button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .course {
+    padding: 18px 14px 40px;
+  }
+
+  header {
+    padding: 0 14px;
+  }
+
+  .feedback-empty-state {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+/* Workspace Clearance for Companion Dock */
+.course,
+.independent {
+  padding-bottom: 140px !important;
+}
+
+@media (max-width: 600px) {
+  .course,
+  .independent {
+    padding-bottom: 100px !important;
+  }
+}
+
+@media (max-width: 375px) {
+  .header-right {
+    gap: 8px;
+  }
+
+  .progression-pill {
+    padding: 2px 6px;
+    font-size: 0.72rem;
+  }
+
+  .pill-xp-bar {
+    display: none;
+  }
+}
+
+/* Reduced Motion Overrides */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .pipeline-step.active .step-badge {
+    animation: none !important;
+  }
+}
