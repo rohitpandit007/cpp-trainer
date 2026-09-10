@@ -31,7 +31,7 @@
   color: #17282b;
   border: 1px solid #dce4dc;
   border-radius: 14px;
-  padding: 10px 14px;
+  padding: 10px 28px 10px 14px;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.4;
@@ -43,6 +43,32 @@
   transform-origin: bottom right;
   transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   word-break: break-word;
+  cursor: pointer;
+}
+
+.bubble-close-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.bubble-close-btn:hover {
+  color: #1e293b;
+  background: #f1f5f9;
 }
 
 .companion-bubble.bubble-hidden {
@@ -308,13 +334,23 @@
 
 /* 8. CELEBRATION: Joyous victory celebration dance */
 .state-celebration .companion-avatar-frame {
-  animation: companion-celebrate 1.2s infinite ease-in-out;
+  animation: companion-celebrate 1.2s ease-in-out 3;
 }
 @keyframes companion-celebrate {
   0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
-  25% { transform: translateY(-10px) rotate(4deg) scale(1.06); }
-  50% { transform: translateY(-3px) rotate(0deg) scale(1.02); }
-  75% { transform: translateY(-10px) rotate(-4deg) scale(1.06); }
+  25% { transform: translateY(-7px) rotate(2deg) scale(1.03); }
+  50% { transform: translateY(-2px) rotate(0deg) scale(1.01); }
+  75% { transform: translateY(-7px) rotate(-2deg) scale(1.03); }
+}
+
+/* Calmer celebration when recovering from errors */
+.state-celebration.calm-celebration .companion-avatar-frame,
+.calm-celebration .companion-avatar-frame {
+  animation: companion-calm-nod 1.4s ease-in-out 2 !important;
+}
+@keyframes companion-calm-nod {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.02); }
 }
 
 /* 9. INDEPENDENT_SUCCESS: Proud stance with warm radiant golden aura */
@@ -387,6 +423,15 @@ body.dark-mode .companion-bubble {
   color: #e2e8f0;
   border-color: #23374d;
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .bubble-close-btn {
+  color: #64748b;
+}
+
+body.dark-mode .bubble-close-btn:hover {
+  color: #f1f5f9;
+  background: #1e293b;
 }
 
 body.dark-mode .bubble-tail {

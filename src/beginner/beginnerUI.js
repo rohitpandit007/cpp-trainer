@@ -308,18 +308,18 @@ export class BeginnerUI {
   static renderScaffoldingStageBar(lessonId, currentStage = 'worked', profile = {}) {
     const scaffoldHistory = profile.beginner?.scaffoldHistory?.[lessonId] || {};
     const stages = [
-      { id: 'worked', num: 1, icon: '📖', label: 'Worked Example' },
-      { id: 'faded', num: 2, icon: '✏️', label: 'Faded Practice' },
-      { id: 'guided', num: 3, icon: '🧭', label: 'Guided Practice' },
-      { id: 'independent', num: 4, icon: '🛡️', label: 'Independent Problem' },
-      { id: 'transfer', num: 5, icon: '🔬', label: 'Transfer Benchmark' }
+      { id: 'worked', num: 1, icon: '📖', label: 'Worked', subtitle: 'Watch an example' },
+      { id: 'faded', num: 2, icon: '✏️', label: 'Faded', subtitle: 'Complete part of it' },
+      { id: 'guided', num: 3, icon: '🧭', label: 'Guided', subtitle: 'Follow a plan' },
+      { id: 'independent', num: 4, icon: '🛡️', label: 'Independent', subtitle: 'Solve it yourself' },
+      { id: 'transfer', num: 5, icon: '🔬', label: 'Transfer', subtitle: 'Use the idea in a new problem' }
     ];
 
     return `
       <nav class="scaffold-stage-bar" role="navigation" aria-label="Pedagogical Scaffolding Ladder">
         <div class="stage-bar-label">
           <span class="stage-bar-badge">SCAFFOLDING LADDER</span>
-          <span class="stage-bar-help">Step-by-step assistance removal:</span>
+          <span class="stage-bar-help">Five-stage learning progression:</span>
         </div>
         <div class="stage-bar-track">
           ${stages.map((stg, i) => {
@@ -332,10 +332,13 @@ export class BeginnerUI {
                 data-lesson-id="${lessonId}"
                 data-stage="${stg.id}"
                 aria-current="${isCurrent ? 'step' : 'false'}"
-                title="Stage ${stg.num}: ${stg.label}">
+                title="Stage ${stg.num}: ${stg.label} — ${stg.subtitle}">
                 <span class="pill-num">${isCompleted ? '✓' : stg.num}</span>
                 <span class="pill-icon">${stg.icon}</span>
-                <span class="pill-name">${stg.label}</span>
+                <span class="pill-body">
+                  <span class="pill-name">${stg.label}</span>
+                  <span class="pill-sub">${stg.subtitle}</span>
+                </span>
               </button>
             `;
           }).join('')}
@@ -357,11 +360,36 @@ export class BeginnerUI {
       <div class="worked-walkthrough-panel" role="region" aria-label="Worked Example Walkthrough">
         <div class="worked-header">
           <div class="worked-badge-row">
-            <span class="worked-badge">STAGE 1 · WORKED EXAMPLE</span>
+            <span class="worked-badge">STAGE 1 · WORKED EXAMPLE — WATCH AN EXAMPLE</span>
             <span class="concept-badge">💡 Concept: ${esc(worked.concept || progression?.lessonTitle)}</span>
           </div>
           <h3>${esc(progression?.lessonTitle)}: Expert Walkthrough</h3>
           <p class="worked-lead">Observe how a complete C++ program solves this problem before attempting to write code yourself.</p>
+        </div>
+
+        <div class="next-action-directive worked-directive" role="region" aria-label="Next Action Directive">
+          <div class="directive-header">
+            <div class="directive-badge-row">
+              <span class="directive-badge">STAGE 1 · WORKED</span>
+              <span class="directive-flow-hint">Current Action</span>
+            </div>
+            <div class="directive-action-title">
+              <span class="directive-icon" aria-hidden="true">👉</span>
+              <strong>What to do next: Run and Observe</strong>
+            </div>
+            <p class="directive-instruction">Watch how the expert demonstration works. Click <strong>"▷ Run and Observe Output"</strong> below to inspect the program output.</p>
+          </div>
+          <div class="learning-flow-indicator" aria-label="Learning flow: Read, Predict, Edit, Run, Reflect">
+            <span class="flow-step-pill"><span class="flow-step-num">1</span><span class="flow-step-text">Read</span></span>
+            <span class="flow-step-arrow" aria-hidden="true">➔</span>
+            <span class="flow-step-pill"><span class="flow-step-num">2</span><span class="flow-step-text">Predict</span></span>
+            <span class="flow-step-arrow" aria-hidden="true">➔</span>
+            <span class="flow-step-pill"><span class="flow-step-num">3</span><span class="flow-step-text">Edit</span></span>
+            <span class="flow-step-arrow" aria-hidden="true">➔</span>
+            <span class="flow-step-pill active"><span class="flow-step-num">4</span><span class="flow-step-text">Run</span></span>
+            <span class="flow-step-arrow" aria-hidden="true">➔</span>
+            <span class="flow-step-pill"><span class="flow-step-num">5</span><span class="flow-step-text">Reflect</span></span>
+          </div>
         </div>
 
         <!-- 1. Problem & Expected Output -->
@@ -444,6 +472,15 @@ export class BeginnerUI {
               </div>
             `}
           </div>
+
+          ${runOutput ? `
+            <div class="worked-post-run-notice">
+              <span>✓ Demonstration output verified. Ready to write code yourself?</span>
+              <button class="worked-next-btn" data-action="start-scaffold-stage" data-lesson-id="${progression.lessonId}" data-stage="faded">
+                Continue to Faded Practice ➔
+              </button>
+            </div>
+          ` : ''}
         </div>
 
         ${worked.fadingGuidance ? `
@@ -468,7 +505,7 @@ export class BeginnerUI {
       <div class="faded-guidance-container" role="region" aria-label="Faded Practice Pattern Reference">
         ${guidance ? `
           <div class="faded-prompt-banner">
-            <span class="faded-badge">STAGE 2 · FADED PRACTICE</span>
+            <span class="faded-badge">STAGE 2 · FADED PRACTICE — COMPLETE PART OF IT</span>
             <strong>Pattern Completion Challenge:</strong>
             <span>${esc(guidance)}</span>
           </div>
@@ -499,7 +536,7 @@ export class BeginnerUI {
     return `
       <div class="guided-decomposition-card" role="region" aria-label="Guided Practice Decomposition Plan">
         <div class="guided-header">
-          <span class="guided-badge">STAGE 3 · GUIDED PRACTICE</span>
+          <span class="guided-badge">STAGE 3 · GUIDED PRACTICE — FOLLOW A PLAN</span>
           <h4>🧭 Step-by-Step Problem Decomposition Plan</h4>
           <p>Use this structured breakdown to construct your C++ solution without cognitive overload:</p>
         </div>
@@ -612,7 +649,7 @@ export class BeginnerUI {
     return `
       <div class="transfer-challenge-banner" role="region" aria-label="Unseen Transfer Benchmark Challenge">
         <div class="transfer-header-row">
-          <span class="transfer-badge">STAGE 5 · UNSEEN TRANSFER BENCHMARK</span>
+          <span class="transfer-badge">STAGE 5 · UNSEEN TRANSFER BENCHMARK — USE THE IDEA IN A NEW PROBLEM</span>
           <span class="assistance-zero-tag">Zero Scaffolding Mode</span>
         </div>
         <h3>🔬 Transfer Challenge: True Conceptual Independence</h3>
@@ -630,10 +667,10 @@ export class BeginnerUI {
    */
   static renderScaffoldingNextStepBanner(currentStage, lessonId, profile = {}) {
     const nextMap = {
-      worked: { next: 'faded', label: 'Faded Practice', icon: '✏️', desc: 'Reconstruct the key parts of the worked pattern.' },
-      faded: { next: 'guided', label: 'Guided Practice', icon: '🧭', desc: 'Build a more substantial solution with structured decomposition.' },
-      guided: { next: 'independent', label: 'Independent Problem', icon: '🛡️', desc: 'Write the complete solution with zero hints or templates.' },
-      independent: { next: 'transfer', label: 'Unseen Transfer Benchmark', icon: '🔬', desc: 'Prove true conceptual mastery on a novel real-world problem domain.' }
+      worked: { next: 'faded', label: 'Faded Practice', stageName: 'Faded', icon: '✏️', subtitle: 'Complete part of it', desc: 'Reconstruct the key parts of the worked pattern.' },
+      faded: { next: 'guided', label: 'Guided Practice', stageName: 'Guided', icon: '🧭', subtitle: 'Follow a plan', desc: 'Build a more substantial solution with structured decomposition.' },
+      guided: { next: 'independent', label: 'Independent Problem', stageName: 'Independent', icon: '🛡️', subtitle: 'Solve it yourself', desc: 'Write the complete solution with zero hints or templates.' },
+      independent: { next: 'transfer', label: 'Unseen Transfer Benchmark', stageName: 'Transfer', icon: '🔬', subtitle: 'Use the idea in a new problem', desc: 'Prove true conceptual mastery on a novel real-world problem domain.' }
     };
 
     const target = nextMap[currentStage];
@@ -644,7 +681,7 @@ export class BeginnerUI {
         <div class="next-step-icon">${target.icon}</div>
         <div class="next-step-info">
           <span class="next-badge">PEDAGOGICAL LADDER · NEXT STAGE</span>
-          <strong>Advance to ${target.label}</strong>
+          <strong>Advance to ${target.label} (${target.stageName} — ${target.subtitle})</strong>
           <p>${target.desc}</p>
         </div>
         <button class="next-stage-btn" data-action="start-scaffold-stage" data-lesson-id="${lessonId}" data-stage="${target.next}">

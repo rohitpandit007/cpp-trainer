@@ -356,7 +356,8 @@ export class ConceptVisualizer {
       this.root.innerHTML = `
         <div class="vis-fallback-card">
           <h3>Interactive Concept Visualizer</h3>
-          <p>Click "Visualize Concept" or select an educational demo to see how your C++ code executes in memory.</p>
+          <p class="vis-disclaimer">A simplified concept illustration, not an exact execution trace.</p>
+          <p>Click "Visualize Concept" or select an educational demo to explore key C++ concepts visually.</p>
           <button class="load-demo-btn" data-vis-load-demo="${CONCEPT_FAMILIES.VARIABLES}">Load Variable Demo →</button>
         </div>
       `;
@@ -399,6 +400,7 @@ export class ConceptVisualizer {
             ${esc(this.timeline.title)}
             <span class="provenance-tag">CONCEPTUAL MODEL</span>
           </h3>
+          <p class="vis-disclaimer">A simplified concept illustration, not an exact execution trace.</p>
           <p class="vis-objective">🎯 <b>Core Principle:</b> ${esc(this.timeline.educationalObjective)}</p>
         </div>
         <div class="vis-header-right">

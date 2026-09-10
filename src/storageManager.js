@@ -106,7 +106,14 @@ export class StorageManager {
   }
 
   isCompanionMinimized() {
-    return this.getItem(STORAGE_KEYS.COMPANION_MINIMIZED) === 'true';
+    const stored = this.getItem(STORAGE_KEYS.COMPANION_MINIMIZED);
+    if (stored === null) {
+      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        return true;
+      }
+      return false;
+    }
+    return stored === 'true';
   }
 
   setCompanionMinimized(minimized) {

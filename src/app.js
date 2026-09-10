@@ -90,7 +90,7 @@ const getIndependentExercise = (mode) => {
   return selectFromPool(practicePool);
 };
 
-const state = {
+export const state = {
   profile: migratedStored,
   theme: savedTheme,
   lessonId: 'cpp-basics',
@@ -135,7 +135,8 @@ const state = {
   workedExecuting: false,
   refPatternOpen: false,
   activeDecompositionPlan: null,
-  activeWorkspaceDebug: false
+  activeWorkspaceDebug: false,
+  stageDrafts: {}
 };
 
 let visualizer = null;
@@ -251,22 +252,22 @@ const save = () => {
 };
 const esc = value => (value || '').replace(/[&<>]/g, x => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[x]));
 
-const sidebar = () => {
+export const sidebar = () => {
   const stats = state.profile.stats || {};
   return `<aside role="navigation" aria-label="Course and mode navigation">
     <div class="brand"><span>✦</span> CodeBloom <b>C++</b></div>
-    <button class="nav ${state.mode === 'course' ? 'active' : ''}" data-action="mode" data-mode="course">▦ &nbsp; Learning path</button>
-    <button class="nav ${state.mode === 'beginner' ? 'active' : ''}" data-action="mode" data-mode="beginner">🌱 &nbsp; Beginner Hub</button>
-    <button class="nav ${state.mode === 'practice' ? 'active' : ''}" data-action="mode" data-mode="practice">⌁ &nbsp; Practice lab</button>
-    <button class="nav ${state.mode === 'challenge' ? 'active' : ''}" data-action="mode" data-mode="challenge">⚡ &nbsp; Challenge mode</button>
-    <button class="nav ${state.mode === 'mastery' ? 'active' : ''}" data-action="mode" data-mode="mastery">🏆 &nbsp; Mastery test</button>
-    <button class="nav ${state.mode === 'benchmark' ? 'active' : ''}" data-action="mode" data-mode="benchmark">🔬 &nbsp; Benchmark</button>
+    <button class="nav ${state.mode === 'course' ? 'active' : ''}" data-action="mode" data-mode="course" title="Learning Path — Step-by-step 20-lesson guided C++ curriculum">▦ &nbsp; Learning path</button>
+    <button class="nav ${state.mode === 'beginner' ? 'active' : ''}" data-action="mode" data-mode="beginner" title="Beginner Hub — Scaffolded practice, mental models, and vocabulary">🌱 &nbsp; Beginner Hub</button>
+    <button class="nav ${state.mode === 'practice' ? 'active' : ''}" data-action="mode" data-mode="practice" title="Practice Lab — Free-form C++ coding playground and experiments">⌁ &nbsp; Practice lab</button>
+    <button class="nav ${state.mode === 'challenge' ? 'active' : ''}" data-action="mode" data-mode="challenge" title="Challenge Mode — Timed and algorithmic coding challenges">⚡ &nbsp; Challenge mode</button>
+    <button class="nav ${state.mode === 'mastery' ? 'active' : ''}" data-action="mode" data-mode="mastery" title="Mastery — How confidently you've demonstrated this concept through unassisted practice">🏆 &nbsp; Mastery test</button>
+    <button class="nav ${state.mode === 'benchmark' ? 'active' : ''}" data-action="mode" data-mode="benchmark" title="Benchmark — Independent problem-solving evaluation without assistance or hints">🔬 &nbsp; Benchmark</button>
     <div class="divider"></div>
     <p class="overline">YOUR JOURNEY</p>
-    <div class="progress-ring"><strong>${state.profile.completed.length}</strong><span>/ 20 lessons</span></div>
+    <div class="progress-ring" title="Lessons — Total guided C++ curriculum lessons completed"><strong>${state.profile.completed.length}</strong><span>/ 20 lessons</span></div>
     <div class="sidebar-stats">
-      <div class="stat-pill"><small>SOLUTIONS</small> <b>${stats.passedSubmissions || 0} passed</b></div>
-      <div class="stat-pill"><small>RETRIEVAL QUEUE</small> <b>${(state.profile.retrievalQueue || []).length} due</b></div>
+      <div class="stat-pill" title="Passed — C++ exercises successfully solved and verified against tests"><small>SOLUTIONS</small> <b>${stats.passedSubmissions || 0} passed</b></div>
+      <div class="stat-pill" title="Due (Retrieval Queue) — Lessons and concepts scheduled for spaced retrieval practice to lock into long-term memory"><small>RETRIEVAL QUEUE</small> <b>${(state.profile.retrievalQueue || []).length} due</b></div>
     </div>
     <p class="tiny">Every line you write is progress.</p>
   </aside>`;
@@ -295,17 +296,17 @@ const renderRecommendationBanner = () => {
   `;
 };
 
-const renderConceptMasteryRow = (concepts = [], hide = false) => {
+export const renderConceptMasteryRow = (concepts = [], hide = false) => {
   if (hide || !concepts || concepts.length === 0) return '';
   return `
     <div class="concept-mastery-row">
-      <span class="concept-row-label">Target Concepts:</span>
+      <span class="concept-row-label" title="Mastery — How confidently you've demonstrated this concept across practice.">Target Concepts:</span>
       <div class="concept-pill-list">
         ${concepts.map(c => {
           const m = state.profile.conceptMastery?.[c];
           const levelNum = m?.level || 1;
           const levelName = m?.levelName || 'Introduced';
-          return `<span class="concept-pill level-${levelNum}" title="${m?.reason || 'Concept progress'}">
+          return `<span class="concept-pill level-${levelNum}" title="${esc(c)} · Level ${levelNum} (${esc(levelName)}) — Mastery reflects how confidently you've demonstrated this concept.">
             <b>${esc(c)}</b>
             <small>L${levelNum}: ${esc(levelName)}</small>
           </span>`;
@@ -313,6 +314,81 @@ const renderConceptMasteryRow = (concepts = [], hide = false) => {
       </div>
     </div>
   `;
+};
+
+export const renderStageDirective = (stage) => {
+  const directives = {
+    worked: {
+      action: 'Run and Observe',
+      desc: 'Watch how the expert demonstration works. Click "▷ Run and Observe Output" below to inspect the program output.',
+      activeStep: 'Run',
+      badge: 'STAGE 1 · WORKED'
+    },
+    faded: {
+      action: 'Fill in the missing code',
+      desc: 'Look for the TODO comments in the editor below, replace the blanks with your code, and run your solution.',
+      activeStep: 'Edit',
+      badge: 'STAGE 2 · FADED'
+    },
+    guided: {
+      action: 'Follow the plan and write your solution',
+      desc: 'Follow the step-by-step computational plan above, implement each part in the editor, and test it.',
+      activeStep: 'Edit',
+      badge: 'STAGE 3 · GUIDED'
+    },
+    independent: {
+      action: 'Solve the problem yourself',
+      desc: 'Write the complete solution from scratch without templates or hints, then test and submit your code.',
+      activeStep: 'Edit',
+      badge: 'STAGE 4 · INDEPENDENT'
+    },
+    transfer: {
+      action: 'Apply the idea to this new problem',
+      desc: 'Apply this concept to an unseen real-world challenge to demonstrate conceptual independence.',
+      activeStep: 'Edit',
+      badge: 'STAGE 5 · TRANSFER'
+    }
+  };
+
+  const d = directives[stage] || directives.faded;
+  const flowSteps = ['Read', 'Predict', 'Edit', 'Run', 'Reflect'];
+
+  return `
+    <div class="next-action-directive" role="region" aria-label="Next Action Directive">
+      <div class="directive-header">
+        <div class="directive-badge-row">
+          <span class="directive-badge">${d.badge}</span>
+          <span class="directive-flow-hint">Current Action</span>
+        </div>
+        <div class="directive-action-title">
+          <span class="directive-icon" aria-hidden="true">👉</span>
+          <strong>What to do next: ${d.action}</strong>
+        </div>
+        <p class="directive-instruction">${d.desc}</p>
+      </div>
+      <div class="learning-flow-indicator" aria-label="Learning flow: Read, Predict, Edit, Run, Reflect">
+        ${flowSteps.map((step, idx) => {
+          const isCurrent = step === d.activeStep;
+          return `
+            ${idx > 0 ? '<span class="flow-step-arrow" aria-hidden="true">➔</span>' : ''}
+            <span class="flow-step-pill ${isCurrent ? 'active' : ''}">
+              <span class="flow-step-num">${idx + 1}</span>
+              <span class="flow-step-text">${step}</span>
+            </span>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+};
+
+export const renderLineNumbers = (code = '') => {
+  const lineCount = Math.max(1, (String(code || '').match(/\n/g) || []).length + 1);
+  const spans = [];
+  for (let i = 1; i <= lineCount; i++) {
+    spans.push(`<span>${i}</span>`);
+  }
+  return spans.join('\n');
 };
 
 export const renderProblemSpecs = (exercise) => {
@@ -372,6 +448,22 @@ export const renderExecutionFeedback = () => {
   const f = state.feedback;
   const isSuccess = f.status === 'ready';
   const badgeClass = f.badge ? f.badge.toLowerCase().replace(/[^a-z0-9]+/g, '-') : (isSuccess ? 'success' : 'error');
+  const isCompileError = f.badge === 'Compilation Error' || f.status === 'compile_error' || Boolean(f.rawError && !f.stdout);
+  const beginnerHeadline = isCompileError
+    ? "Your program couldn't be compiled."
+    : "Your program ran, but the output was different from what was expected.";
+  const beginnerSubhead = isCompileError
+    ? "Look at the highlighted line and check what the compiler is telling you."
+    : "Check the result below and compare what your program printed.";
+  const whatHappened = isCompileError
+    ? (f.message || "The C++ compiler found syntax or type errors before the program could run.")
+    : (f.message || "Your code executed, but produced unexpected results or exited with an error.");
+  const whatToInspect = isCompileError
+    ? "Check for missing semicolons ';', mismatched braces '{}', misspelled identifiers, or missing headers."
+    : "Inspect the output printed to the terminal versus what the problem asked for.";
+  const whatToTryNext = isCompileError
+    ? "Review the line number in the compiler error details below, correct the syntax, and run your code again."
+    : "Review your logic or test with different inputs in the standard input console.";
 
   return `
     <div class="feedback ${f.status}" role="region" aria-label="Execution feedback">
@@ -381,6 +473,31 @@ export const renderExecutionFeedback = () => {
         ${f.executionTimeMs !== undefined && f.executionTimeMs !== null ? `<span class="execution-time">${f.executionTimeMs}ms</span>` : ''}
       </div>
       <p class="feedback-explanation">${esc(f.message || '')}</p>
+      ${!isSuccess ? `
+        <div class="beginner-first-error-card" role="region" aria-label="Beginner-first explanation">
+          <div class="bf-error-header">
+            <span class="bf-error-icon">💡</span>
+            <div class="bf-error-titles">
+              <strong class="bf-error-headline">${beginnerHeadline}</strong>
+              <p class="bf-error-subhead">${beginnerSubhead}</p>
+            </div>
+          </div>
+          <div class="bf-trio-grid">
+            <div class="bf-trio-item">
+              <span class="bf-trio-label">1. What happened</span>
+              <p class="bf-trio-text">${esc(whatHappened)}</p>
+            </div>
+            <div class="bf-trio-item">
+              <span class="bf-trio-label">2. What to inspect</span>
+              <p class="bf-trio-text">${esc(whatToInspect)}</p>
+            </div>
+            <div class="bf-trio-item">
+              <span class="bf-trio-label">3. What to try next</span>
+              <p class="bf-trio-text">${esc(whatToTryNext)}</p>
+            </div>
+          </div>
+        </div>
+      ` : ''}
       ${f.stdout ? `
         <div class="output-console stdout-console">
           <div class="console-label">STANDARD OUTPUT (STDOUT)</div>
@@ -399,7 +516,7 @@ export const renderExecutionFeedback = () => {
       ${!isSuccess && !state.activeWorkspaceDebug ? `
         <div class="workspace-debug-prompt">
           <button class="workspace-debug-trigger-btn" data-action="start-workspace-debug">
-            🛠️ Walk Through 5-Step Debug Reasoning (Observe ➔ Locate ➔ Explain ➔ Fix)
+            🛠️ Walk Through 5-Step Debug Reasoning (Observe ➔ Locate ➔ Explain ➔ Fix ➔ Verify)
           </button>
         </div>
       ` : ''}
@@ -437,6 +554,22 @@ export const renderAssessmentFeedback = () => {
   const a = state.assessmentFeedback;
   const isSuccess = a.passed;
   const badgeClass = a.badge ? a.badge.toLowerCase().replace(/[^a-z0-9]+/g, '-') : (isSuccess ? 'success' : 'error');
+  const isCompileFail = a.status === 'compile_error' || (a.badge && a.badge.toLowerCase().includes('compile'));
+  const asmtHeadline = isCompileFail
+    ? "Your program couldn't be compiled."
+    : "Your solution needs another change.";
+  const asmtSubhead = isCompileFail
+    ? "Look at the highlighted line and check what the compiler is telling you."
+    : "Your program ran, but the output was different from what was expected.";
+  const asmtWhatHappened = isCompileFail
+    ? (a.message || "Compilation failed before tests could be executed.")
+    : (a.message || "One or more test cases did not pass.");
+  const asmtWhatToInspect = a.classifiedError
+    ? `${a.classifiedError.description}`
+    : (isCompileFail ? "Review syntax, types, and variable declarations." : "Compare your output against the expected output in the test cases below.");
+  const asmtWhatToTryNext = a.classifiedError
+    ? `${a.classifiedError.remedy}`
+    : (isCompileFail ? "Fix the line indicated in the compiler details below and check again." : "Check the result below and try again.");
 
   return `
     <div class="assessment-panel ${a.status}" role="region" aria-label="Assessment results">
@@ -445,6 +578,31 @@ export const renderAssessmentFeedback = () => {
         <b>${esc(a.title)}</b>
       </div>
       <p class="assessment-explanation">${esc(a.message)}</p>
+      ${!isSuccess ? `
+        <div class="beginner-first-error-card asmt-error-card" role="region" aria-label="Beginner-first explanation">
+          <div class="bf-error-header">
+            <span class="bf-error-icon">💡</span>
+            <div class="bf-error-titles">
+              <strong class="bf-error-headline">${asmtHeadline}</strong>
+              <p class="bf-error-subhead">${asmtSubhead}</p>
+            </div>
+          </div>
+          <div class="bf-trio-grid">
+            <div class="bf-trio-item">
+              <span class="bf-trio-label">1. What happened</span>
+              <p class="bf-trio-text">${esc(asmtWhatHappened)}</p>
+            </div>
+            <div class="bf-trio-item">
+              <span class="bf-trio-label">2. What to inspect</span>
+              <p class="bf-trio-text">${esc(asmtWhatToInspect)}</p>
+            </div>
+            <div class="bf-trio-item">
+              <span class="bf-trio-label">3. What to try next</span>
+              <p class="bf-trio-text">${esc(asmtWhatToTryNext)}</p>
+            </div>
+          </div>
+        </div>
+      ` : ''}
 
       ${a.antiCheatWarning ? `
         <div class="anti-cheat-alert">
@@ -517,7 +675,7 @@ export const renderAssessmentFeedback = () => {
       ${!isSuccess && !state.activeWorkspaceDebug ? `
         <div class="workspace-debug-prompt">
           <button class="workspace-debug-trigger-btn" data-action="start-workspace-debug">
-            🛠️ Walk Through 5-Step Debug Reasoning (Observe ➔ Locate ➔ Explain ➔ Fix)
+            🛠️ Walk Through 5-Step Debug Reasoning (Observe ➔ Locate ➔ Explain ➔ Fix ➔ Verify)
           </button>
         </div>
       ` : ''}
@@ -545,7 +703,8 @@ export const renderFeedbackSlot = () => {
       <div class="empty-state-icon">💡</div>
       <div class="empty-state-text">
         <strong>Ready to run your code</strong>
-        <p>Click <b>▷ Run Code</b> to compile and test output, or <b>✓ Submit Assessment</b> to grade against test cases.</p>
+        <p>Click <b>▷ Run Code</b>: See what your code does. Click <b>✓ Check Solution</b>: Test whether it solves the task.</p>
+        <span class="empty-state-sub">✓ Submit Assessment grades your solution against all test cases.</span>
       </div>
     </div>
   `;
@@ -627,7 +786,7 @@ const renderDynamicLineCard = (lesson) => {
   `;
 };
 
-const workspace = () => {
+export const workspace = () => {
   const l = current();
   const topic = state.profile.topics[l.id] || {};
   const difficulty = nextDifficulty(topic);
@@ -641,19 +800,13 @@ const workspace = () => {
   const progression = state.scaffoldingEngine.getProgressionForLesson(l.id);
   const currentStage = state.scaffoldStage || (state.exercise === 'mini' ? 'faded' : state.exercise === 'medium' ? 'guided' : 'independent');
 
-  return `<main class="workspace">
-    <div class="crumb">${l.module} <span>/</span> Lesson ${lessons.indexOf(l) + 1}</div>
-    <h2>${l.title}</h2>
-    ${isBrandNewLearner ? BeginnerUI.renderWorkspaceBeginnerBanner(false) : ''}
-    ${renderRecommendationBanner()}
-    ${BeginnerUI.renderScaffoldingStageBar(l.id, currentStage, state.profile)}
-    ${currentStage === 'worked' ? BeginnerUI.renderWorkedWalkthrough(progression, state.workedRunOutput, state.workedExecuting) : ''}
+  const renderPracticeBody = () => `
     <div class="lesson-body">
       <section class="teach">
         <div class="mission"><span>YOUR MISSION</span><strong>${l.mission}</strong></div>
         <h3>In plain language</h3>
         <p>${l.explanation}</p>
-        ${renderDynamicLineCard(l)}
+        ${currentStage !== 'worked' ? renderDynamicLineCard(l) : ''}
         <div class="adaptive ${difficulty}">
           <b>${difficulty === 'support' ? 'Let’s make this smaller' : difficulty === 'medium' ? 'You’re ready to stretch' : 'Start small, then grow'}</b>
           <span>${difficulty === 'support' ? 'You have had a few tough attempts. Use the easy task and hint first.' : difficulty === 'medium' ? 'You have been solving confidently. Try a medium task next.' : 'Finish the easy task, then level up.'}</span>
@@ -663,70 +816,118 @@ const workspace = () => {
           ${BeginnerUI.renderContextualSyntaxBar(state.contextualToken)}
         </details>
       </section>
-      <section class="code-zone">
-        ${BeginnerUI.renderDataFlowIndicator(detectCin(state.source, ex), Boolean(state.feedback || state.assessmentFeedback))}
-        <div class="editor-top">
-          <span><i></i> main.cpp</span>
-          <button data-action="reset" aria-label="Reset starter code" title="Reset code to starter template">Reset example</button>
-        </div>
-        <textarea spellcheck="false" data-source aria-label="C++ Code Editor">${esc(state.source)}</textarea>
-        ${state.showStdin ? `
-          <div class="stdin-box ${detectCin(state.source, ex) ? 'cin-highlight' : ''}">
-            <div class="stdin-label">
-              <span>Standard Input (stdin for cin)</span>
-              ${detectCin(state.source, ex) ? '<span class="cin-badge">cin detected</span>' : ''}
+      <div class="editor-column">
+        <section class="exercise active-exercise-card" aria-label="Active Exercise Specification">
+          <div class="exercise-card-header">
+            <div class="exercise-header-row">
+              <span class="eyebrow">${currentStage === 'faded' ? 'STAGE 2 · FADED PRACTICE — COMPLETE PART OF IT' : currentStage === 'guided' ? 'STAGE 3 · GUIDED PRACTICE — FOLLOW A PLAN' : currentStage === 'independent' ? 'STAGE 4 · INDEPENDENT PROBLEM — SOLVE IT YOURSELF' : 'ACTIVE EXERCISE'}</span>
+              ${ex?.level ? `<span class="level-badge">Level ${ex.level}: ${ex.level === 1 ? 'Fill-in' : ex.level === 2 ? 'Function' : ex.level === 3 ? 'Class' : ex.level === 4 ? 'Scaffolded' : 'Independent'}</span>` : ''}
             </div>
-            <textarea data-stdin aria-label="Standard input console" placeholder="Values to pass to cin (space or newline separated)...">${esc(state.stdin)}</textarea>
+            <div class="levels">
+              <button class="${state.exercise === 'mini' ? 'selected' : ''}" data-action="exercise" data-level="mini">Easy</button>
+              <button class="${state.exercise === 'medium' ? 'selected' : ''}" data-action="exercise" data-level="medium">Medium</button>
+              <button class="${state.exercise === 'hard' ? 'selected' : ''}" data-action="exercise" data-level="hard">Hard</button>
+            </div>
           </div>
-        ` : ''}
-        <div class="editor-actions">
-          <div class="action-left">
-            <button class="visualize-btn ${state.showVisualizer ? 'active' : ''}" data-action="visualize" aria-label="Toggle Concept Visualizer" title="Visualize C++ concepts in action">🔍 Visualize</button>
-            <button class="hint" data-action="hint" aria-label="Request progressive hint">${state.hintIndex === 0 ? 'Need a hint?' : state.hintIndex < (ex?.hints?.length || 3) ? `Next hint (${state.hintIndex}/${ex?.hints?.length || 3})` : 'All hints shown'}</button>
-            <button class="stdin-toggle ${state.showStdin ? 'active' : ''}" data-action="toggle-stdin" aria-label="Toggle standard input">${state.showStdin ? 'Hide stdin ✕' : 'Add stdin ⌨'}</button>
+          <h3 class="exercise-title">${ex?.title || (state.exercise === 'mini' ? 'Easy Win' : state.exercise === 'medium' ? 'Build It Up' : 'Independent Build')}</h3>
+          ${renderConceptMasteryRow(ex?.concepts, Boolean(ex?.isIndependent))}
+          <div class="exercise-task-box">
+            <span class="task-badge">🎯 YOUR TASK:</span>
+            <p class="task-statement">${prompt}</p>
           </div>
-          <div class="action-right">
-            <button class="run ${state.executing ? 'running' : ''}" data-action="run" aria-label="Run Code" ${state.executing || state.assessing ? 'disabled' : ''}>${state.executing ? '⏳ Running...' : '▷ Run Code'}</button>
-            <button class="submit-assess ${state.assessing ? 'running' : ''}" data-action="submit-assess" aria-label="Submit Assessment" ${state.executing || state.assessing ? 'disabled' : ''}>${state.assessing ? '⚡ Grading...' : '✓ Submit Assessment'}</button>
+          ${renderStageDirective(currentStage)}
+          ${renderTestPreview(ex)}
+          ${renderProblemSpecs(ex)}
+          ${currentStage === 'faded' ? BeginnerUI.renderReferenceWorkedPattern(progression, state.refPatternOpen) : ''}
+          ${currentStage === 'guided' ? BeginnerUI.renderDecompositionGuide(progression, ex, state.activeDecompositionPlan || DecompositionEngine.createPlanFromExercise(ex)) : ''}
+          ${renderProgressiveHints(ex)}
+        </section>
+        <section class="code-zone">
+          ${BeginnerUI.renderDataFlowIndicator(detectCin(state.source, ex), Boolean(state.feedback || state.assessmentFeedback))}
+          <div class="editor-top">
+            <span><i></i> main.cpp</span>
+            <button data-action="reset" aria-label="Reset starter code" title="Reset code to starter template">Reset example</button>
           </div>
-        </div>
-        <div id="concept-visualizer-slot"></div>
-        <div class="feedback-container" aria-live="polite" aria-atomic="true">
-          ${renderFeedbackSlot()}
-        </div>
-      </section>
+          <div class="editor-workspace-wrap">
+            <div class="line-gutter" aria-hidden="true">${renderLineNumbers(state.source)}</div>
+            <textarea spellcheck="false" data-source aria-label="C++ Code Editor">${esc(state.source)}</textarea>
+          </div>
+          ${state.showStdin ? `
+            <div class="stdin-box ${detectCin(state.source, ex) ? 'cin-highlight' : ''}">
+              <div class="stdin-label">
+                <span>Standard Input (stdin for cin)</span>
+                ${detectCin(state.source, ex) ? '<span class="cin-badge">Input required by this exercise</span>' : ''}
+              </div>
+              <textarea data-stdin aria-label="Standard input console" placeholder="Values to pass to cin (space or newline separated)...">${esc(state.stdin)}</textarea>
+            </div>
+          ` : ''}
+          <div class="editor-actions">
+            <div class="action-left">
+              <button class="visualize-btn ${state.showVisualizer ? 'active' : ''}" data-action="visualize" aria-label="Toggle Concept Visualizer" title="Concept Visualizer: A simplified concept illustration, not an exact execution trace.">🔍 Visualize</button>
+              <button class="hint" data-action="hint" aria-label="Request progressive hint">${state.hintIndex === 0 ? 'Need a hint?' : state.hintIndex < (ex?.hints?.length || 3) ? `Next hint (${state.hintIndex}/${ex?.hints?.length || 3})` : 'All hints shown'}</button>
+              <button class="stdin-toggle ${state.showStdin ? 'active' : ''}" data-action="toggle-stdin" aria-label="Toggle standard input">${state.showStdin ? 'Hide stdin ✕' : 'Add stdin ⌨'}</button>
+            </div>
+            <div class="action-right">
+              <button class="run ${state.executing ? 'running' : ''}" data-action="run" aria-label="Run Code" ${state.executing || state.assessing ? 'disabled' : ''}>${state.executing ? '⏳ Running...' : '▷ Run Code'}</button>
+              ${currentStage === 'worked' ? `
+                <button class="submit-assess disabled-worked" disabled title="In Stage 1 (Worked), observe and run the demo above. Continue to Faded Practice to submit solutions.">✓ Check Solution (Available in Practice)</button>
+              ` : `
+                <button class="submit-assess ${state.assessing ? 'running' : ''}" data-action="submit-assess" aria-label="Submit Assessment" title="Check Solution: Test whether it solves the task." ${state.executing || state.assessing ? 'disabled' : ''}>${state.assessing ? '⚡ Checking...' : '✓ Check Solution'}</button>
+              `}
+            </div>
+          </div>
+          <div class="action-helper-text">
+            <span class="helper-run"><strong>Run:</strong> See what your code does.</span>
+            <span class="helper-check"><strong>Check Solution:</strong> Test whether it solves the task.</span>
+          </div>
+          <div id="concept-visualizer-slot"></div>
+          <div class="feedback-container" aria-live="polite" aria-atomic="true">
+            ${renderFeedbackSlot()}
+          </div>
+        </section>
+      </div>
     </div>
-    <section class="exercise">
-      <div>
-        <div class="exercise-header-row">
-          <span class="eyebrow">TRY IT YOURSELF</span>
-          ${ex?.level ? `<span class="level-badge">Level ${ex.level}: ${ex.level === 1 ? 'Fill-in' : ex.level === 2 ? 'Function' : ex.level === 3 ? 'Class' : ex.level === 4 ? 'Scaffolded' : 'Independent'}</span>` : ''}
+  `;
+
+  return `<main class="workspace">
+    <div class="crumb">${l.module} <span>/</span> Lesson ${lessons.indexOf(l) + 1}</div>
+    <h2>${l.title}</h2>
+    ${isBrandNewLearner ? BeginnerUI.renderWorkspaceBeginnerBanner(false) : ''}
+    ${BeginnerUI.renderScaffoldingStageBar(l.id, currentStage, state.profile)}
+    ${currentStage === 'worked' ? `
+      ${BeginnerUI.renderWorkedWalkthrough(progression, state.workedRunOutput, state.workedExecuting)}
+      <div class="worked-transition-card" role="region" aria-label="Worked demonstration next step">
+        <div class="worked-transition-header">
+          <span class="worked-transition-icon" aria-hidden="true">✏️</span>
+          <div class="worked-transition-info">
+            <h4>Stage 1 Demonstration Complete</h4>
+            <p>You are observing the expert C++ solution. You do not need to edit or submit this code. When you understand the logic, continue to Faded Practice to begin editing and solving exercises.</p>
+          </div>
         </div>
-        <h3>${ex?.title || (state.exercise === 'mini' ? 'Easy Win' : state.exercise === 'medium' ? 'Build It Up' : 'Independent Build')}</h3>
-        ${renderConceptMasteryRow(ex?.concepts, Boolean(ex?.isIndependent))}
-        ${currentStage === 'faded' ? BeginnerUI.renderReferenceWorkedPattern(progression, state.refPatternOpen) : ''}
-        ${currentStage === 'guided' ? BeginnerUI.renderDecompositionGuide(progression, ex, state.activeDecompositionPlan || DecompositionEngine.createPlanFromExercise(ex)) : ''}
-        <p>${prompt}</p>
-        ${renderProblemSpecs(ex)}
-        ${renderTestPreview(ex)}
-        ${renderProgressiveHints(ex)}
+        <button class="worked-continue-faded-btn" data-action="start-scaffold-stage" data-lesson-id="${l.id}" data-stage="faded">
+          Continue to Faded Practice ➔
+        </button>
       </div>
-      <div class="levels">
-        <button class="${state.exercise === 'mini' ? 'selected' : ''}" data-action="exercise" data-level="mini">Easy</button>
-        <button class="${state.exercise === 'medium' ? 'selected' : ''}" data-action="exercise" data-level="medium">Medium</button>
-        <button class="${state.exercise === 'hard' ? 'selected' : ''}" data-action="exercise" data-level="hard">Hard</button>
-      </div>
-    </section>
+      <details class="practice-workspace-preview-drawer">
+        <summary class="practice-preview-summary">
+          <span>👁️ Preview Upcoming Practice Exercise (Opens in Stage 2 · Faded Practice)</span>
+          <span class="preview-badge">Optional Preview</span>
+        </summary>
+        <div class="practice-preview-content">
+          ${renderPracticeBody()}
+        </div>
+      </details>
+    ` : renderPracticeBody()}
   </main>`;
 };
 
-const independent = (type) => {
+export const independent = (type) => {
   const isBenchmark = type === 'benchmark';
   const ex = state.currentIndependentExercise || getIndependentExercise(type);
   const question = ex ? ex.problemStatement : (type === 'mastery' ? mastery[0] : lessons[0].hard);
 
   return `<main class="independent">
-    <div class="eyebrow">${isBenchmark ? 'INDEPENDENT CODING PROFICIENCY BENCHMARK' : type === 'mastery' ? 'C++ PROGRAMMING MASTERY TEST' : type === 'challenge' ? 'CHALLENGE MODE' : 'PRACTICE LAB'}</div>
+    <div class="eyebrow">${isBenchmark ? 'INDEPENDENT CODING PROFICIENCY BENCHMARK — Unseen evaluation without hints' : type === 'mastery' ? 'C++ PROGRAMMING MASTERY TEST — Concept verification' : type === 'challenge' ? 'CHALLENGE MODE' : 'PRACTICE LAB'}</div>
     <h1>${isBenchmark ? 'Unseen transfer evaluation. No hints, no templates.' : type === 'mastery' ? 'No hints. Just your craft.' : type === 'challenge' ? 'Solve it from the question.' : 'A fresh question is waiting.'}</h1>
     ${renderRecommendationBanner()}
     ${isBenchmark ? BeginnerUI.renderTransferChallengeBanner(state.scaffoldingEngine.getProgressionForLesson(state.lessonId)) : ''}
@@ -748,19 +949,22 @@ const independent = (type) => {
         <span><i></i> solution.cpp</span>
         <button data-action="new-question" aria-label="Load a fresh question" title="Load a new random question">New question ↻</button>
       </div>
-      <textarea data-source spellcheck="false" aria-label="C++ Solution Editor">${esc(state.source)}</textarea>
+      <div class="editor-workspace-wrap">
+        <div class="line-gutter" aria-hidden="true">${renderLineNumbers(state.source)}</div>
+        <textarea data-source spellcheck="false" aria-label="C++ Solution Editor">${esc(state.source)}</textarea>
+      </div>
       ${state.showStdin ? `
         <div class="stdin-box ${detectCin(state.source, ex) ? 'cin-highlight' : ''}">
           <div class="stdin-label">
             <span>Standard Input (stdin for cin)</span>
-            ${detectCin(state.source, ex) ? '<span class="cin-badge">cin detected</span>' : ''}
+            ${detectCin(state.source, ex) ? '<span class="cin-badge">Input required by this exercise</span>' : ''}
           </div>
           <textarea data-stdin aria-label="Standard input console" placeholder="Values to pass to cin...">${esc(state.stdin)}</textarea>
         </div>
       ` : ''}
       <div class="editor-actions">
         <div class="action-left">
-          <button class="visualize-btn ${state.showVisualizer ? 'active' : ''}" data-action="visualize" aria-label="Toggle Concept Visualizer" title="Visualize C++ concepts in action">🔍 Visualize</button>
+          <button class="visualize-btn ${state.showVisualizer ? 'active' : ''}" data-action="visualize" aria-label="Toggle Concept Visualizer" title="Concept Visualizer: A simplified concept illustration, not an exact execution trace.">🔍 Visualize</button>
           ${type !== 'mastery' && !isBenchmark ? `
             <button class="hint" data-action="hint" aria-label="Request progressive hint">${state.hintIndex === 0 ? 'Need a hint?' : state.hintIndex < (ex?.hints?.length || 3) ? `Next hint (${state.hintIndex}/${ex?.hints?.length || 3})` : 'All hints shown'}</button>
           ` : isBenchmark ? '<span class="mastery-no-hint-tag">🔒 No hints in benchmark</span>' : '<span class="mastery-no-hint-tag">🔒 No hints in mastery</span>'}
@@ -768,8 +972,12 @@ const independent = (type) => {
         </div>
         <div class="action-right">
           <button class="run ${state.executing ? 'running' : ''}" data-action="run" aria-label="Run Code" ${state.executing || state.assessing ? 'disabled' : ''}>${state.executing ? '⏳ Running...' : '▷ Run Code'}</button>
-          <button class="submit-assess ${state.assessing ? 'running' : ''}" data-action="submit-assess" aria-label="Submit Assessment" ${state.executing || state.assessing ? 'disabled' : ''}>${state.assessing ? '⚡ Grading...' : '✓ Submit Assessment'}</button>
+          <button class="submit-assess ${state.assessing ? 'running' : ''}" data-action="submit-assess" aria-label="Submit Assessment" title="Check Solution: Test whether it solves the task." ${state.executing || state.assessing ? 'disabled' : ''}>${state.assessing ? '⚡ Checking...' : '✓ Check Solution'}</button>
         </div>
+      </div>
+      <div class="action-helper-text">
+        <span class="helper-run"><strong>Run:</strong> See what your code does.</span>
+        <span class="helper-check"><strong>Check Solution:</strong> Test whether it solves the task.</span>
       </div>
       <div id="concept-visualizer-slot"></div>
       <div class="feedback-container" aria-live="polite" aria-atomic="true">
@@ -846,6 +1054,19 @@ if (app) {
 app.addEventListener('input', e => {
   if (e.target.matches('[data-source]')) {
     state.source = e.target.value;
+    const curStage = state.scaffoldStage || (state.exercise === 'mini' ? 'faded' : state.exercise === 'medium' ? 'guided' : 'independent');
+    state.stageDrafts = state.stageDrafts || {};
+    state.stageDrafts[`${state.lessonId}_${curStage}`] = state.source;
+
+    // Synchronize line numbers in gutter
+    const wrap = e.target.closest('.editor-workspace-wrap');
+    if (wrap) {
+      const gutter = wrap.querySelector('.line-gutter');
+      if (gutter) {
+        gutter.innerHTML = renderLineNumbers(state.source);
+      }
+    }
+
     companionController.notifyTyping();
     const curEx = state.mode === 'course' ? currentExercise() : state.currentIndependentExercise;
     if (!state.showStdin && detectCin(state.source, curEx)) {
@@ -870,6 +1091,18 @@ app.addEventListener('input', e => {
     state.decompositionEngine.updateField(e.target.dataset.decompInput, e.target.value);
   }
 });
+
+app.addEventListener('scroll', e => {
+  if (e.target && e.target.matches && e.target.matches('[data-source]')) {
+    const wrap = e.target.closest('.editor-workspace-wrap');
+    if (wrap) {
+      const gutter = wrap.querySelector('.line-gutter');
+      if (gutter) {
+        gutter.scrollTop = e.target.scrollTop;
+      }
+    }
+  }
+}, true);
 
 app.addEventListener('click', async e => {
   const el = e.target.closest('[data-action]');
@@ -1010,6 +1243,14 @@ app.addEventListener('click', async e => {
   if (action === 'start-scaffold-stage') {
     const lessonId = el.dataset.lessonId || state.lessonId || 'cpp-basics';
     const stage = el.dataset.stage;
+    const oldStage = state.scaffoldStage || (state.exercise === 'mini' ? 'faded' : state.exercise === 'medium' ? 'guided' : 'independent');
+    const oldLessonId = state.lessonId || 'cpp-basics';
+
+    state.stageDrafts = state.stageDrafts || {};
+    if (state.source) {
+      state.stageDrafts[`${oldLessonId}_${oldStage}`] = state.source;
+    }
+
     const progression = state.scaffoldingEngine.getProgressionForLesson(lessonId);
     const stgData = progression.stages[stage];
 
@@ -1020,9 +1261,11 @@ app.addEventListener('click', async e => {
     state.assessmentFeedback = null;
     state.hintIndex = 0;
 
+    const savedDraft = state.stageDrafts[`${lessonId}_${stage}`];
+
     if (stage === 'worked') {
       state.mode = 'course';
-      state.source = stgData?.code || current().example;
+      state.source = savedDraft || stgData?.code || current().example;
       state.exercise = 'mini';
       state.workedRunOutput = null;
       state.workedExecuting = false;
@@ -1032,7 +1275,7 @@ app.addEventListener('click', async e => {
       state.mode = 'course';
       state.exercise = 'mini';
       const ex = currentExercise();
-      state.source = stgData?.starterCode || ex?.starterCode || starterTemplate;
+      state.source = savedDraft || stgData?.starterCode || ex?.starterCode || starterTemplate;
       state.showSolution = false;
       state.activeDecompositionPlan = null;
       state.activeWorkspaceDebug = false;
@@ -1040,7 +1283,7 @@ app.addEventListener('click', async e => {
       state.mode = 'course';
       state.exercise = 'medium';
       const ex = currentExercise();
-      state.source = stgData?.starterCode || ex?.starterCode || starterTemplate;
+      state.source = savedDraft || stgData?.starterCode || ex?.starterCode || starterTemplate;
       state.showSolution = false;
       state.activeWorkspaceDebug = false;
       if (!state.activeDecompositionPlan) {
@@ -1050,14 +1293,14 @@ app.addEventListener('click', async e => {
       state.mode = 'course';
       state.exercise = 'hard';
       const ex = currentExercise();
-      state.source = stgData?.starterCode || ex?.starterCode || starterTemplate;
+      state.source = savedDraft || stgData?.starterCode || ex?.starterCode || starterTemplate;
       state.showSolution = false;
       state.activeDecompositionPlan = null;
       state.activeWorkspaceDebug = false;
     } else if (stage === 'transfer') {
       state.mode = 'benchmark';
       state.currentIndependentExercise = getTransferBenchmarkForLesson(lessonId);
-      state.source = state.currentIndependentExercise?.starterCode || starterTemplate;
+      state.source = savedDraft || state.currentIndependentExercise?.starterCode || starterTemplate;
       state.showSolution = false;
       state.activeDecompositionPlan = null;
       state.activeWorkspaceDebug = false;
@@ -1076,6 +1319,11 @@ app.addEventListener('click', async e => {
     render();
     if (state.mode === 'course') {
       addLessonNavigation();
+    }
+    // Retain keyboard focus after stage changes for accessibility
+    const targetFocus = app.querySelector(`.stage-pill[data-stage="${stage}"]`) || app.querySelector('.directive-card') || app.querySelector('textarea[data-source]');
+    if (targetFocus && typeof targetFocus.focus === 'function') {
+      try { targetFocus.focus(); } catch {}
     }
     return;
   }
@@ -1441,6 +1689,12 @@ app.addEventListener('click', async e => {
   }
 
   if (action === 'exercise') {
+    const oldStage = state.scaffoldStage || (state.exercise === 'mini' ? 'faded' : state.exercise === 'medium' ? 'guided' : 'independent');
+    state.stageDrafts = state.stageDrafts || {};
+    if (state.source) {
+      state.stageDrafts[`${state.lessonId}_${oldStage}`] = state.source;
+    }
+
     state.exercise = el.dataset.level;
     state.scaffoldStage = el.dataset.level === 'mini' ? 'faded' : el.dataset.level === 'medium' ? 'guided' : 'independent';
     state.feedback = null;
@@ -1456,7 +1710,10 @@ app.addEventListener('click', async e => {
     } else {
       state.activeDecompositionPlan = null;
     }
-    if (ex && ex.starterCode) {
+    const savedDraft = state.stageDrafts[`${state.lessonId}_${state.scaffoldStage}`];
+    if (savedDraft) {
+      state.source = savedDraft;
+    } else if (ex && ex.starterCode) {
       state.source = ex.starterCode;
     }
     checkAndAutoOpenStdin();
@@ -1522,7 +1779,15 @@ app.addEventListener('click', async e => {
 
   if (action === 'reset') {
     const ex = currentExercise();
-    state.source = ex?.starterCode || current().example;
+    const curStage = state.scaffoldStage || (state.exercise === 'mini' ? 'faded' : state.exercise === 'medium' ? 'guided' : 'independent');
+    const progression = state.scaffoldingEngine.getProgressionForLesson(state.lessonId);
+    const stgData = progression?.stages?.[curStage];
+
+    if (state.stageDrafts) {
+      delete state.stageDrafts[`${state.lessonId}_${curStage}`];
+    }
+
+    state.source = curStage === 'worked' ? (stgData?.code || current().example) : (stgData?.starterCode || ex?.starterCode || current().example);
     state.stdin = '';
     state.feedback = null;
     state.assessmentFeedback = null;

@@ -1,6 +1,6 @@
 {
   "releaseVersion": "1.0.0-rc1",
-  "timestamp": "2026-09-09T18:04:15.506Z",
+  "timestamp": "2026-09-10T08:21:19.391Z",
   "environment": {
     "nodeVersion": "v20.20.2",
     "platform": "win32",
@@ -12,7 +12,7 @@
     "lessonExerciseSlots": 60,
     "catalogExercises": 75,
     "benchmarkTransferProblems": 8,
-    "testFiles": 25,
+    "testFiles": 26,
     "companionAssets": 12
   },
   "invariants": {
@@ -85,7 +85,7 @@
     }
   ],
   "fileHashes": {
-    "src/app.js": "1d0023fd2615daa557e5e5f2841a336c82dd1ba2ae0478241e06d67299e1f42b",
+    "src/app.js": "3276ca669f54ed780018b3d4f098b29bc920553b4ee0725350c53ca1f7ecf8b3",
     "src/courseData.js": "552f82480556955e99a1b364dd29b442b188aa55ffc80e5686650dd1350cf995",
     "src/exerciseData.js": "f4549492242c631700d1de5d43ab57040afdc3f8b3f43fbbb58b9dc3d8002a0a",
     "src/learningEngine.js": "052923b07efd902aa2a8e6b7f7e323c97270b41aae7624de7e116d1cd770adf1",

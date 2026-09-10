@@ -56,6 +56,23 @@
   margin-left: 8px;
 }
 
+.vis-disclaimer {
+  display: inline-block;
+  font: 600 12px 'DM Sans', sans-serif;
+  color: #0369a1;
+  background: #f0f9ff;
+  border-left: 3px solid #0284c7;
+  padding: 3px 8px;
+  margin: 4px 0 6px 0;
+  border-radius: 0 4px 4px 0;
+}
+
+body.dark-mode .vis-disclaimer {
+  color: #7dd3fc;
+  background: #082f49;
+  border-left-color: #38bdf8;
+}
+
 /* --- Step Walkthrough Card --- */
 .vis-step-card {
   padding: 16px 22px;

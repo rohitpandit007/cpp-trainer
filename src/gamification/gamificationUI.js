@@ -50,12 +50,12 @@ export class GamificationUI {
 
     return `
       <div class="progression-pill" data-action="open-achievements" title="Click to view achievements and rank progress">
-        <span class="pill-level-tag">LVL ${level}</span>
+        <span class="pill-level-tag" title="Level ${level}: ${esc(levelName)}">LVL ${level}</span>
         <span class="pill-level-name">${esc(levelName)}</span>
-        <span class="pill-xp-bar" aria-label="${progressPercentage}% to next level">
+        <span class="pill-xp-bar" aria-label="${progressPercentage}% to next level" title="${progressPercentage}% progress to next level">
           <span class="pill-xp-fill" style="width: ${progressPercentage}%"></span>
         </span>
-        <span class="pill-xp-text">${xp} XP</span>
+        <span class="pill-xp-text" title="XP (Experience Points) — Earned by writing C++ code and passing checks">${xp} XP</span>
         ${streak >= 2 ? `
           <span class="pill-streak-tag" title="${streak} exercises solved independently in a row">
             🔥 ${streak}
@@ -84,8 +84,8 @@ export class GamificationUI {
       }
     }
 
-    // Limit visible toasts to at most 3 to avoid blocking workspace
-    while (this.toastContainer.children.length >= 3) {
+    // Limit visible toasts to at most 1 to avoid blocking workspace (P2 UI/UX)
+    while (this.toastContainer.children.length >= 1) {
       const oldest = this.toastContainer.firstChild;
       if (oldest) this.toastContainer.removeChild(oldest);
     }

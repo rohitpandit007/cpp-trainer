@@ -219,6 +219,7 @@ export class PikachuCompanion {
     this.badgeEl = null;
     this.toggleBtn = null;
     this.milestoneTimer = null;
+    this.bubbleTimer = null;
 
     this.isMinimized = false;
     this.currentState = COMPANION_STATES.IDLE;
@@ -258,6 +259,7 @@ export class PikachuCompanion {
     this.root.innerHTML = `
       <div class="companion-bubble" id="companion-bubble" aria-live="polite">
         <span class="bubble-text">${this.escapeHtml(this.speechMessages[COMPANION_STATES.IDLE])}</span>
+        <button class="bubble-close-btn" aria-label="Dismiss companion message" title="Dismiss">✕</button>
         <div class="bubble-tail"></div>
       </div>
       <div class="companion-stage">
@@ -281,7 +283,30 @@ export class PikachuCompanion {
     this.imgNext = this.root.querySelector('.companion-img.next');
     this.badgeEl = this.root.querySelector('.companion-state-badge');
     this.toggleBtn = this.root.querySelector('.companion-toggle-btn');
+    const bubbleCloseBtn = this.root.querySelector('.bubble-close-btn');
     const avatarFrame = this.root.querySelector('.companion-avatar-frame');
+
+    // Attach bubble dismiss handlers
+    if (bubbleCloseBtn) {
+      bubbleCloseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this.bubbleTimer) {
+          clearTimeout(this.bubbleTimer);
+          this.bubbleTimer = null;
+        }
+        this.bubbleEl?.classList.add('bubble-hidden');
+      });
+    }
+
+    if (this.bubbleEl) {
+      this.bubbleEl.addEventListener('click', () => {
+        if (this.bubbleTimer) {
+          clearTimeout(this.bubbleTimer);
+          this.bubbleTimer = null;
+        }
+        this.bubbleEl?.classList.add('bubble-hidden');
+      });
+    }
 
     // Attach interaction handlers
     if (this.toggleBtn) {
@@ -405,7 +430,14 @@ export class PikachuCompanion {
     // 5. Contextual Speech Bubble Message
     this.updateSpeechBubble(snapshot);
 
-    // 6. Handle minimized milestone indication
+    // 6. Calm celebration tone after errors or during bug recovery
+    if (snapshot.lastMetadata?.recoveredFromFailure || snapshot.lastMetadata?.isBugRecovery || snapshot.lastMetadata?.hadPriorFailure || snapshot.lastMetadata?.calmCelebration) {
+      this.root.classList.add('calm-celebration');
+    } else {
+      this.root.classList.remove('calm-celebration');
+    }
+
+    // 7. Handle minimized milestone indication
     if (this.isMinimized && (snapshot.state === COMPANION_STATES.MASTERY || snapshot.state === COMPANION_STATES.ULTIMATE_MASTERY || snapshot.lastMetadata?.sourceEvent === 'LEVEL_UP')) {
       this.triggerMinimizedMilestonePulse();
     }
@@ -498,6 +530,11 @@ export class PikachuCompanion {
   updateSpeechBubble(snapshot) {
     if (!this.bubbleEl || !this.bubbleTextEl) return;
 
+    if (this.bubbleTimer) {
+      clearTimeout(this.bubbleTimer);
+      this.bubbleTimer = null;
+    }
+
     // When coding, hide bubble to avoid distraction
     if (snapshot.state === COMPANION_STATES.CODING) {
       this.bubbleEl.classList.add('bubble-hidden');
@@ -509,6 +546,10 @@ export class PikachuCompanion {
     if (message) {
       this.bubbleTextEl.textContent = message;
       this.bubbleEl.classList.remove('bubble-hidden');
+      this.bubbleTimer = setTimeout(() => {
+        this.bubbleEl?.classList.add('bubble-hidden');
+        this.bubbleTimer = null;
+      }, 7000);
     } else {
       this.bubbleEl.classList.add('bubble-hidden');
     }
@@ -521,11 +562,20 @@ export class PikachuCompanion {
   handleAvatarClick() {
     if (!this.bubbleEl || !this.bubbleTextEl) return;
 
+    if (this.bubbleTimer) {
+      clearTimeout(this.bubbleTimer);
+      this.bubbleTimer = null;
+    }
+
     const tip = CXX_TIPS[this.clickTipIndex % CXX_TIPS.length];
     this.clickTipIndex = (this.clickTipIndex + 1) % CXX_TIPS.length;
 
     this.bubbleTextEl.textContent = tip;
     this.bubbleEl.classList.remove('bubble-hidden');
+    this.bubbleTimer = setTimeout(() => {
+      this.bubbleEl?.classList.add('bubble-hidden');
+      this.bubbleTimer = null;
+    }, 7000);
   }
 
   /**
