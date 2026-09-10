@@ -253,9 +253,11 @@ export class DecompositionEngine {
           <h3>${cur.problem}</h3>
           <div class="scaffold-toggle-row">
             <span class="scaffold-label">Scaffolding Assistance:</span>
-            <button class="scaffold-lvl-btn ${this.scaffoldLevel === 'full' ? 'active' : ''}" data-action="decomp-scaffold" data-lvl="full">Full Guidance</button>
-            <button class="scaffold-lvl-btn ${this.scaffoldLevel === 'faded' ? 'active' : ''}" data-action="decomp-scaffold" data-lvl="faded">Faded Prompts</button>
-            <button class="scaffold-lvl-btn ${this.scaffoldLevel === 'independent' ? 'active' : ''}" data-action="decomp-scaffold" data-lvl="independent">Independent</button>
+            <div class="scaffold-btn-group" role="group" aria-label="Scaffolding assistance level">
+              <button class="scaffold-lvl-btn ${this.scaffoldLevel === 'full' ? 'active' : ''}" data-action="decomp-scaffold" data-lvl="full">Full Guidance</button>
+              <button class="scaffold-lvl-btn ${this.scaffoldLevel === 'faded' ? 'active' : ''}" data-action="decomp-scaffold" data-lvl="faded">Faded Prompts</button>
+              <button class="scaffold-lvl-btn ${this.scaffoldLevel === 'independent' ? 'active' : ''}" data-action="decomp-scaffold" data-lvl="independent">Independent</button>
+            </div>
           </div>
         </div>
 

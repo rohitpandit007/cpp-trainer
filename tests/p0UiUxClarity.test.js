@@ -616,4 +616,113 @@ test('P2 #5: Accessibility & Responsive Polish', async (t) => {
   });
 });
 
+test('UI Consistency & Layout Bug-Fix Pass: Visual & Button Regressions', async (t) => {
+  const styleCss = fs.readFileSync(path.resolve(ROOT_DIR, 'src/style.css'), 'utf8');
+  const beginnerCss = fs.readFileSync(path.resolve(ROOT_DIR, 'src/beginner/beginner.css'), 'utf8');
+
+  await t.test('1. Stage 4 (.ladder-stage-card.independent) is explicitly isolated against margin and padding inheritance', () => {
+    assert.ok(
+      beginnerCss.includes('.ladder-stage-card.independent'),
+      'beginner.css must define .ladder-stage-card.independent isolation'
+    );
+    assert.match(
+      beginnerCss,
+      /\.ladder-stage-card\.independent\s*\{[^}]*margin:\s*0\s*!important/
+    );
+    assert.match(
+      beginnerCss,
+      /\.ladder-stage-card\.independent\s*\{[^}]*padding:\s*1\.25rem\s*!important/
+    );
+    assert.ok(
+      styleCss.includes('.ladder-stage-card.independent'),
+      'style.css must also define .ladder-stage-card.independent isolation'
+    );
+  });
+
+  await t.test('2. .matrix-step.independent is isolated from page-level margins', () => {
+    assert.ok(
+      beginnerCss.includes('.matrix-step.independent'),
+      'beginner.css must define .matrix-step.independent isolation'
+    );
+    assert.match(
+      beginnerCss,
+      /\.matrix-step\.independent\s*\{[^}]*margin:\s*0\s*!important/
+    );
+  });
+
+  await t.test('3. Debug progression button (.step-next-btn) has complete CSS styling and dark mode rules', () => {
+    assert.ok(
+      beginnerCss.includes('.step-next-btn'),
+      'beginner.css must define .step-next-btn rules'
+    );
+    assert.match(
+      beginnerCss,
+      /\.step-next-btn\s*\{[^}]*background:/
+    );
+    assert.match(
+      beginnerCss,
+      /\.step-next-btn\s*\{[^}]*border-radius:/
+    );
+    assert.match(
+      beginnerCss,
+      /\.step-next-btn:hover/
+    );
+    assert.match(
+      beginnerCss,
+      /\.dark-mode\s+\.step-next-btn/
+    );
+  });
+
+  await t.test('4. Decomposition next button (.decomp-next-btn) has styling, hover, and disabled states', () => {
+    assert.ok(
+      beginnerCss.includes('.decomp-next-btn'),
+      'beginner.css must define .decomp-next-btn'
+    );
+    assert.match(
+      beginnerCss,
+      /\.decomp-next-btn:hover/
+    );
+    assert.match(
+      beginnerCss,
+      /\.decomp-next-btn:disabled/
+    );
+    assert.match(
+      beginnerCss,
+      /\.dark-mode\s+\.decomp-next-btn/
+    );
+  });
+
+  await t.test('5. Scaffolding assistance is wrapped in a cohesive .scaffold-btn-group', () => {
+    const decompEngine = fs.readFileSync(path.resolve(ROOT_DIR, 'src/beginner/decompositionEngine.js'), 'utf8');
+    assert.ok(
+      decompEngine.includes('class="scaffold-btn-group"'),
+      'decompositionEngine.js must wrap buttons in .scaffold-btn-group'
+    );
+    assert.ok(
+      beginnerCss.includes('.scaffold-btn-group'),
+      'beginner.css must style .scaffold-btn-group'
+    );
+    assert.ok(
+      beginnerCss.includes('.dark-mode .scaffold-btn-group'),
+      'beginner.css must include dark-mode for .scaffold-btn-group'
+    );
+  });
+
+  await t.test('6. Ladder cards have flex column display and action buttons pin to bottom baseline', () => {
+    assert.match(
+      beginnerCss,
+      /\.ladder-stage-card\s*\{[^}]*display:\s*flex/
+    );
+    assert.match(
+      beginnerCss,
+      /\.ladder-stage-card\s*\{[^}]*flex-direction:\s*column/
+    );
+    assert.match(
+      beginnerCss,
+      /\.stage-action-btn\s*\{[^}]*margin-top:\s*auto/
+    );
+  });
+});
+
+
 
